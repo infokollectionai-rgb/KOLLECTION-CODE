@@ -66,7 +66,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center mt-5 text-sm text-muted-foreground">
-          No account? <Link to="/onboarding" className="text-neon hover:underline">Apply here</Link>
+          No account? <Link to="/signup" className="text-neon hover:underline">Sign up here</Link>
         </p>
       </div>
     </div>
