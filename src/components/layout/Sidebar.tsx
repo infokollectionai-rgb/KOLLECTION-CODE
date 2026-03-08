@@ -3,7 +3,7 @@ import { useLocation, Link } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, MessageSquare, CreditCard, Target, BarChart3, 
   UserCheck, Settings, Receipt, Building2, DollarSign, Cpu, Shield,
-  ChevronLeft, ChevronRight, Menu, X
+  ChevronLeft, ChevronRight, Menu, X, FileText
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -22,6 +22,7 @@ const userNav = [
 const adminNav = [
   { path: '/admin', label: 'Overview', icon: LayoutDashboard },
   { path: '/admin/clients', label: 'Clients', icon: Building2 },
+  { path: '/admin/applications', label: 'Applications', icon: FileText, badge: 2 },
   { path: '/admin/revenue', label: 'Revenue', icon: DollarSign },
   { path: '/admin/ai-performance', label: 'AI Performance', icon: Cpu },
   { path: '/admin/settings', label: 'Settings', icon: Settings },
