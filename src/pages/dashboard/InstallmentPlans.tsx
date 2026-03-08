@@ -1,34 +1,13 @@
 import { useState } from 'react';
 import PageWrapper from '@/components/layout/PageWrapper';
-import NeonBadge from '@/components/ui/NeonBadge';
+import StatusBadge from '@/components/ui/NeonBadge';
 import NeonButton from '@/components/ui/NeonButton';
 import { mockInstallments } from '@/data/mockData';
-import { useNegotiation } from '@/services/ai/agentHooks';
-import { generateInstallmentOptions } from '@/services/ai/agentService';
-import { X, Bot, Check, Clock, AlertCircle } from 'lucide-react';
+import { X, Check, Clock, AlertCircle } from 'lucide-react';
 
 export default function InstallmentPlans() {
   const [selected, setSelected] = useState<typeof mockInstallments[0] | null>(null);
-  const [aiOptions, setAiOptions] = useState<any[] | null>(null);
-  const [loadingOptions, setLoadingOptions] = useState(false);
 
-  const handleGetOptions = async () => {
-    if (!selected) return;
-    setLoadingOptions(true);
-    try {
-      const result = await generateInstallmentOptions({
-        debtorId: selected.debtorId,
-        totalDebt: selected.totalAmount,
-        floorAmount: selected.totalAmount * 0.5,
-        tier: 2,
-      });
-      setAiOptions(result.options);
-    } finally {
-      setLoadingOptions(false);
-    }
-  };
-
-  // Generate mock payment timeline
   const getTimeline = (inst: typeof mockInstallments[0]) => {
     const timeline = [];
     for (let i = 0; i < inst.paymentsTotal; i++) {
@@ -46,12 +25,12 @@ export default function InstallmentPlans() {
 
   return (
     <PageWrapper title="Installment Plans">
-      <div className="bg-panel border border-border rounded-xl overflow-hidden">
+      <div className="bg-panel border border-border rounded-lg overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
               {['ID', 'Debtor', 'Total', 'Paid', 'Plan Amt', 'Progress', 'Status', 'Next Due'].map(h => (
-                <th key={h} className="px-4 py-3 text-left text-[10px] font-mono tracking-widest text-muted-foreground uppercase">{h}</th>
+                <th key={h} className="px-5 py-2.5 text-left text-[11px] text-muted-foreground font-medium">{h}</th>
               ))}
             </tr>
           </thead>
@@ -59,22 +38,15 @@ export default function InstallmentPlans() {
             {mockInstallments.map(inst => {
               const pct = Math.round((inst.paymentsMade / inst.paymentsTotal) * 100);
               return (
-                <tr key={inst.id} onClick={() => { setSelected(inst); setAiOptions(null); }} className="border-b border-border/30 hover:bg-neon/5 transition-colors cursor-pointer">
-                  <td className="px-4 py-3 font-mono text-muted-foreground">{inst.id}</td>
-                  <td className="px-4 py-3 text-foreground font-semibold">{inst.debtor}</td>
-                  <td className="px-4 py-3 font-mono text-neon">${inst.totalAmount.toLocaleString()}</td>
-                  <td className="px-4 py-3 font-mono text-status-green">${inst.paidAmount.toLocaleString()}</td>
-                  <td className="px-4 py-3 font-mono">${inst.planAmount}/mo</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1 bg-border rounded overflow-hidden">
-                        <div className="h-full bg-neon rounded neon-glow-sm" style={{ width: `${pct}%` }} />
-                      </div>
-                      <span className="font-mono text-[10px] text-muted-foreground w-8">{pct}%</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3"><NeonBadge variant={inst.status === 'Active' ? 'green' : 'red'}>{inst.status}</NeonBadge></td>
-                  <td className="px-4 py-3 font-mono text-muted-foreground">{inst.nextDue}</td>
+                <tr key={inst.id} onClick={() => setSelected(inst)} className="border-b border-border/50 hover:bg-raised/50 transition-colors cursor-pointer">
+                  <td className="px-5 py-3 font-mono text-muted-foreground text-xs">{inst.id}</td>
+                  <td className="px-5 py-3 text-foreground">{inst.debtor}</td>
+                  <td className="px-5 py-3 font-mono">${inst.totalAmount.toLocaleString()}</td>
+                  <td className="px-5 py-3 font-mono text-status-green">${inst.paidAmount.toLocaleString()}</td>
+                  <td className="px-5 py-3 font-mono">${inst.planAmount}/mo</td>
+                  <td className="px-5 py-3 font-mono text-xs">{inst.paymentsMade}/{inst.paymentsTotal} ({pct}%)</td>
+                  <td className="px-5 py-3"><StatusBadge variant={inst.status === 'Active' ? 'green' : 'red'}>{inst.status}</StatusBadge></td>
+                  <td className="px-5 py-3 font-mono text-xs text-muted-foreground">{inst.nextDue}</td>
                 </tr>
               );
             })}
@@ -82,83 +54,57 @@ export default function InstallmentPlans() {
         </table>
       </div>
 
-      {/* Side Panel */}
       {selected && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setSelected(null)} />
-          <div className="relative w-full max-w-md bg-panel border-l border-neon/20 animate-slide-in-right overflow-y-auto">
+          <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" onClick={() => setSelected(null)} />
+          <div className="relative w-full max-w-md bg-panel border-l border-border animate-slide-in-right overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="font-display text-sm font-bold tracking-widest">{selected.debtor}</h2>
-                <button onClick={() => setSelected(null)} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+                <h2 className="text-sm font-semibold">{selected.debtor}</h2>
+                <button onClick={() => setSelected(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
               </div>
 
-              {/* Summary */}
               <div className="grid grid-cols-2 gap-3 mb-6">
-                <div className="bg-deep rounded-lg p-3">
-                  <p className="text-[9px] font-mono text-muted-foreground tracking-widest">Total</p>
-                  <p className="font-mono text-neon">${selected.totalAmount.toLocaleString()}</p>
+                <div className="bg-raised rounded-md p-3">
+                  <p className="text-[10px] text-muted-foreground">Total</p>
+                  <p className="font-mono text-sm">${selected.totalAmount.toLocaleString()}</p>
                 </div>
-                <div className="bg-deep rounded-lg p-3">
-                  <p className="text-[9px] font-mono text-muted-foreground tracking-widest">Paid</p>
-                  <p className="font-mono text-status-green">${selected.paidAmount.toLocaleString()}</p>
+                <div className="bg-raised rounded-md p-3">
+                  <p className="text-[10px] text-muted-foreground">Paid</p>
+                  <p className="font-mono text-sm text-status-green">${selected.paidAmount.toLocaleString()}</p>
                 </div>
               </div>
 
-              {/* Payment Timeline */}
-              <h3 className="font-mono text-[10px] tracking-widest text-muted-foreground mb-4 uppercase">Payment Timeline</h3>
+              <h3 className="text-xs text-muted-foreground mb-3">Payment Timeline</h3>
               <div className="space-y-0 mb-6">
                 {getTimeline(selected).map((p, i) => (
                   <div key={i} className="flex items-start gap-3">
-                    {/* Node */}
                     <div className="flex flex-col items-center">
-                      <div className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        p.status === 'paid' ? 'bg-status-green/20 border border-status-green neon-glow-sm' :
-                        p.status === 'missed' ? 'bg-status-red/20 border border-status-red' :
-                        'bg-deep border border-border'
+                      <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center flex-shrink-0 border ${
+                        p.status === 'paid' ? 'bg-status-green/15 border-status-green' :
+                        p.status === 'missed' ? 'bg-status-red/15 border-status-red' :
+                        'bg-raised border-border'
                       }`}>
                         {p.status === 'paid' && <Check className="w-2 h-2 text-status-green" />}
                         {p.status === 'missed' && <AlertCircle className="w-2 h-2 text-status-red" />}
                         {p.status === 'upcoming' && <Clock className="w-2 h-2 text-muted-foreground" />}
                       </div>
                       {i < getTimeline(selected).length - 1 && (
-                        <div className={`w-px h-6 ${p.status === 'paid' ? 'bg-status-green/30' : 'bg-border'}`} />
+                        <div className={`w-px h-5 ${p.status === 'paid' ? 'bg-status-green/20' : 'bg-border'}`} />
                       )}
                     </div>
-                    {/* Content */}
-                    <div className="pb-4 -mt-0.5">
+                    <div className="pb-3 -mt-0.5">
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs text-foreground">${p.amount}</span>
-                        <span className="font-mono text-[9px] text-muted-foreground">{p.date}</span>
+                        <span className="text-[10px] text-muted-foreground">{p.date}</span>
                         {p.status !== 'upcoming' && (
-                          <NeonBadge variant={p.status === 'paid' ? 'green' : 'red'}>{p.status}</NeonBadge>
+                          <StatusBadge variant={p.status === 'paid' ? 'green' : 'red'}>{p.status}</StatusBadge>
                         )}
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-
-              {/* AI Options */}
-              <NeonButton size="sm" className="w-full mb-4" loading={loadingOptions} onClick={handleGetOptions}>
-                <Bot className="w-3 h-3" /> Modify Plan — Get AI Options
-              </NeonButton>
-
-              {aiOptions && (
-                <div className="space-y-2">
-                  <p className="text-[10px] font-mono text-neon tracking-widest uppercase mb-2">AI-Optimized Options</p>
-                  {aiOptions.map((opt, i) => (
-                    <div key={i} className="bg-deep border border-border rounded-lg p-3 hover:border-neon/30 transition-all cursor-pointer">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-display text-xs font-bold tracking-widest">{opt.label}</span>
-                        <NeonBadge variant="neon">{opt.duration}mo</NeonBadge>
-                      </div>
-                      <p className="font-mono text-sm text-neon">${opt.amount}/mo</p>
-                      <p className="text-[10px] text-muted-foreground">Est. recovery: ${Math.round(opt.totalRecovered).toLocaleString()}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
         </div>

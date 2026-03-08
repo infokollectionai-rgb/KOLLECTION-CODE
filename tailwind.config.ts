@@ -12,9 +12,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ["Orbitron", "sans-serif"],
-        body: ["Exo 2", "sans-serif"],
-        mono: ["Share Tech Mono", "monospace"],
+        sans: ["IBM Plex Sans", "sans-serif"],
+        mono: ["IBM Plex Mono", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -60,14 +59,7 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        neon: {
-          DEFAULT: "hsl(var(--neon))",
-          bright: "hsl(var(--neon-bright))",
-          dim: "hsl(var(--neon-dim))",
-        },
-        void: "hsl(var(--bg-void))",
-        deep: "hsl(var(--bg-deep))",
-        base: "hsl(var(--bg-base))",
+        neon: "hsl(var(--neon))",
         panel: "hsl(var(--bg-panel))",
         raised: "hsl(var(--bg-raised))",
         "status-green": "hsl(var(--status-green))",

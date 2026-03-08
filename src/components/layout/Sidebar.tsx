@@ -1,20 +1,18 @@
 import { useAuth } from '@/context/AuthContext';
 import { useLocation, Link } from 'react-router-dom';
 import { 
-  LayoutDashboard, Users, MessageSquare, CreditCard, Target, BarChart3, 
-  UserCheck, Settings, Receipt, Building2, DollarSign, Cpu, Shield,
-  ChevronLeft, ChevronRight, Menu, X, FileText
+  LayoutDashboard, Users, Activity, CreditCard, FileText, Receipt, 
+  Settings, Building2, DollarSign, Cpu, Shield, ChevronLeft, ChevronRight, 
+  Menu, X, ClipboardList
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 const userNav = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/dashboard/accounts', label: 'Accounts', icon: Users },
-  { path: '/dashboard/conversations', label: 'Conversations', icon: MessageSquare },
-  { path: '/dashboard/installments', label: 'Installments', icon: CreditCard },
-  { path: '/dashboard/promises', label: 'Promises', icon: Target },
-  { path: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
-  { path: '/dashboard/takeover', label: 'Human Takeover', icon: UserCheck },
+  { path: '/dashboard/activity', label: 'Activity Log', icon: Activity },
+  { path: '/dashboard/installments', label: 'Installment Plans', icon: CreditCard },
+  { path: '/dashboard/reports', label: 'Reports', icon: FileText },
   { path: '/dashboard/billing', label: 'Billing', icon: Receipt },
   { path: '/dashboard/settings', label: 'Settings', icon: Settings },
 ];
@@ -22,7 +20,7 @@ const userNav = [
 const adminNav = [
   { path: '/admin', label: 'Overview', icon: LayoutDashboard },
   { path: '/admin/clients', label: 'Clients', icon: Building2 },
-  { path: '/admin/applications', label: 'Applications', icon: FileText, badge: 2 },
+  { path: '/admin/applications', label: 'Applications', icon: ClipboardList, badge: 2 },
   { path: '/admin/revenue', label: 'Revenue', icon: DollarSign },
   { path: '/admin/ai-performance', label: 'AI Performance', icon: Cpu },
   { path: '/admin/settings', label: 'Settings', icon: Settings },
@@ -35,7 +33,6 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const nav = isAdmin ? adminNav : userNav;
 
-  // Auto-collapse on mobile
   useEffect(() => {
     const check = () => {
       if (window.innerWidth < 768) {
@@ -48,55 +45,45 @@ export default function Sidebar() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // Close mobile menu on route change
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [location.pathname]);
+  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
-  const sidebarWidth = collapsed && !mobileOpen ? 'w-[60px]' : 'w-[240px]';
+  const sidebarWidth = collapsed && !mobileOpen ? 'w-[60px]' : 'w-[220px]';
 
   return (
     <>
-      {/* Mobile overlay */}
       {mobileOpen && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 md:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
-      {/* Mobile toggle */}
       <button
         onClick={() => { setMobileOpen(!mobileOpen); setCollapsed(false); }}
-        className="fixed top-4 left-4 z-[60] md:hidden w-8 h-8 rounded-md bg-deep border border-border flex items-center justify-center text-neon"
+        className="fixed top-3.5 left-3.5 z-[60] md:hidden w-7 h-7 rounded bg-panel border border-border flex items-center justify-center text-muted-foreground"
       >
-        {mobileOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+        {mobileOpen ? <X className="w-3.5 h-3.5" /> : <Menu className="w-3.5 h-3.5" />}
       </button>
 
-      <aside className={`fixed top-0 left-0 z-50 h-screen bg-deep border-r border-border flex flex-col transition-all duration-300 ${sidebarWidth} ${
+      <aside className={`fixed top-0 left-0 z-50 h-screen bg-panel border-r border-border flex flex-col transition-all duration-200 ${sidebarWidth} ${
         mobileOpen ? 'translate-x-0' : collapsed ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
       }`}>
         {/* Logo */}
-        <div className="h-16 flex items-center px-4 border-b border-border gap-2">
-          <div className="w-8 h-8 rounded-md bg-neon/20 flex items-center justify-center neon-glow-sm flex-shrink-0">
-            <Shield className="w-4 h-4 text-neon" />
+        <div className="h-14 flex items-center px-4 border-b border-border gap-2">
+          <div className="w-7 h-7 rounded bg-neon/10 flex items-center justify-center flex-shrink-0">
+            <Shield className="w-3.5 h-3.5 text-neon" />
           </div>
           {(!collapsed || mobileOpen) && (
-            <span className="font-display font-bold text-sm text-neon neon-text-glow tracking-widest">
-              KOLLECTION
-            </span>
+            <span className="font-semibold text-sm text-foreground tracking-wide">Kollection</span>
           )}
         </div>
 
-        {/* Admin Badge */}
+        {/* Admin indicator */}
         {isAdmin && (!collapsed || mobileOpen) && (
-          <div className="mx-4 mt-3 px-2 py-1 rounded text-[10px] font-mono tracking-widest text-status-red bg-status-red/10 border border-status-red/25 text-center uppercase">
-            Admin Mode
+          <div className="mx-3 mt-3 px-2 py-1 rounded text-[10px] font-mono text-status-red bg-status-red/8 border border-status-red/15 text-center">
+            Admin
           </div>
-        )}
-        {isAdmin && collapsed && !mobileOpen && (
-          <div className="mx-2 mt-3 w-8 h-1 rounded bg-status-red mx-auto" />
         )}
 
         {/* Nav */}
-        <nav className="flex-1 py-4 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 py-3 space-y-0.5 overflow-y-auto">
           {nav.map(item => {
             const active = location.pathname === item.path;
             const showLabel = !collapsed || mobileOpen;
@@ -104,19 +91,19 @@ export default function Sidebar() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 py-3 text-[13px] font-semibold tracking-wide transition-all border-l-[3px] ${
-                  showLabel ? 'px-5' : 'px-0 justify-center'
+                className={`flex items-center gap-2.5 py-2 text-[13px] transition-colors border-l-2 ${
+                  showLabel ? 'px-4' : 'px-0 justify-center'
                 } ${
                   active 
-                    ? 'bg-neon/10 text-neon border-l-neon neon-text-glow' 
-                    : 'text-muted-foreground border-l-transparent hover:bg-neon/5 hover:text-foreground'
+                    ? 'bg-neon/8 text-neon border-l-neon' 
+                    : 'text-muted-foreground border-l-transparent hover:bg-raised hover:text-foreground'
                 }`}
                 title={!showLabel ? item.label : undefined}
               >
                 <item.icon className="w-4 h-4 flex-shrink-0" />
                 {showLabel && <span className="flex-1">{item.label}</span>}
                 {showLabel && 'badge' in item && (item as any).badge > 0 && (
-                  <span className="ml-auto bg-status-yellow/20 text-status-yellow border border-status-yellow/30 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded tracking-wider">
+                  <span className="bg-status-yellow/15 text-status-yellow text-[10px] font-mono px-1.5 py-0.5 rounded-full">
                     {(item as any).badge}
                   </span>
                 )}
@@ -125,12 +112,11 @@ export default function Sidebar() {
           })}
         </nav>
 
-        {/* Collapse toggle - desktop only */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="hidden md:flex h-10 items-center justify-center border-t border-border text-muted-foreground hover:text-neon transition-colors"
+          className="hidden md:flex h-9 items-center justify-center border-t border-border text-muted-foreground hover:text-foreground transition-colors"
         >
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
         </button>
       </aside>
     </>

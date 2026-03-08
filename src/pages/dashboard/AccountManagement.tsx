@@ -1,144 +1,165 @@
 import { useState } from 'react';
 import PageWrapper from '@/components/layout/PageWrapper';
-import NeonBadge from '@/components/ui/NeonBadge';
+import StatusBadge from '@/components/ui/NeonBadge';
 import NeonButton from '@/components/ui/NeonButton';
-import ChannelIcon from '@/components/ui/ChannelIcon';
-import { mockDebtors } from '@/data/mockData';
-import { useOutreach, useVoiceCall, usePaymentLink, useEscalation } from '@/services/ai/agentHooks';
-import { X, Search, Download, Bot, MessageSquare, Phone, Mail, CreditCard, UserCheck } from 'lucide-react';
+import { mockDebtors, mockActivityLog } from '@/data/mockData';
+import { X, Search, Download, FileText, ArrowLeft } from 'lucide-react';
 
-const tierBadge = (tier: number) => tier === 1 ? 'green' : tier === 2 ? 'yellow' : 'red';
-const statusBadge = (s: string) => s === 'Paid' ? 'green' : s === 'Escalated' ? 'red' : s === 'Negotiating' ? 'yellow' : 'neon';
+const statusBadge = (s: string) => s === 'Resolved' ? 'green' as const : s === 'Escalated' ? 'red' as const : s === 'Negotiating' ? 'yellow' as const : 'blue' as const;
 
 export default function AccountManagement() {
   const [selected, setSelected] = useState<typeof mockDebtors[0] | null>(null);
   const [search, setSearch] = useState('');
-  const outreach = useOutreach();
-  const voice = useVoiceCall();
-  const payment = usePaymentLink();
-  const escalation = useEscalation();
+  const [showTakeoverConfirm, setShowTakeoverConfirm] = useState(false);
+  const [takeoverRequested, setTakeoverRequested] = useState(false);
+  const [clientNote, setClientNote] = useState('');
 
   const filtered = mockDebtors.filter(d =>
     d.name.toLowerCase().includes(search.toLowerCase()) || d.id.toLowerCase().includes(search.toLowerCase())
   );
 
+  const accountActivity = selected ? mockActivityLog.filter(a => a.debtor === selected.name) : [];
+
   return (
-    <PageWrapper title="Account Management">
-      {/* Top bar */}
-      <div className="flex items-center gap-4 mb-6">
+    <PageWrapper title="Accounts">
+      <div className="flex items-center gap-3 mb-5">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search accounts..."
-            className="w-full bg-deep border border-border rounded-md pl-10 pr-4 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 focus:border-neon/40 focus:shadow-[0_0_8px_rgba(0,200,255,0.6)] outline-none transition-all"
+            className="w-full bg-panel border border-border rounded-md pl-9 pr-4 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-neon/30 outline-none transition-colors"
           />
         </div>
-        <NeonButton variant="outline" size="sm"><Download className="w-3 h-3" /> Export CSV</NeonButton>
+        <NeonButton size="sm"><Download className="w-3 h-3" /> Export CSV</NeonButton>
       </div>
 
-      {/* Table */}
-      <div className="bg-panel border border-border rounded-xl overflow-hidden">
+      <div className="bg-panel border border-border rounded-lg overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
-              {['ID', 'Name', 'Amount', 'Recovered', 'Tier', 'Status', 'AI Stage', 'Days OD', 'Attempts'].map(h => (
-                <th key={h} className="px-4 py-3 text-left text-[10px] font-mono tracking-widest text-muted-foreground uppercase">{h}</th>
+              {['Name', 'Original Balance', 'Recovered', 'Recovery %', 'Status', 'Last Activity', ''].map(h => (
+                <th key={h} className="px-5 py-2.5 text-left text-[11px] text-muted-foreground font-medium">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={9} className="py-16 text-center">
-                <Search className="w-6 h-6 text-neon/30 mx-auto mb-2" />
-                <p className="font-mono text-sm text-muted-foreground tracking-widest">NO DATA YET</p>
+              <tr><td colSpan={7} className="py-12 text-center">
+                <Search className="w-5 h-5 text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No accounts found</p>
               </td></tr>
             ) : filtered.map(d => (
-              <tr key={d.id} onClick={() => setSelected(d)} className="border-b border-border/30 hover:bg-neon/5 cursor-pointer transition-colors">
-                <td className="px-4 py-3 font-mono text-muted-foreground">{d.id}</td>
-                <td className="px-4 py-3 text-foreground font-semibold">{d.name}</td>
-                <td className="px-4 py-3 font-mono text-neon">${d.amount.toLocaleString()}</td>
-                <td className="px-4 py-3 font-mono text-status-green">${d.recovered.toLocaleString()}</td>
-                <td className="px-4 py-3"><NeonBadge variant={tierBadge(d.tier)}>Tier {d.tier}</NeonBadge></td>
-                <td className="px-4 py-3"><NeonBadge variant={statusBadge(d.status)}>{d.status}</NeonBadge></td>
-                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{d.aiStage}</td>
-                <td className="px-4 py-3 font-mono">{d.daysOverdue}</td>
-                <td className="px-4 py-3 font-mono">{d.attempts}</td>
+              <tr key={d.id} className="border-b border-border/50 hover:bg-raised/50 transition-colors">
+                <td className="px-5 py-3 text-foreground font-medium">{d.name}</td>
+                <td className="px-5 py-3 font-mono">${d.amount.toLocaleString()}</td>
+                <td className="px-5 py-3 font-mono text-status-green">${d.recovered.toLocaleString()}</td>
+                <td className="px-5 py-3 font-mono">{d.amount > 0 ? Math.round((d.recovered / d.amount) * 100) : 0}%</td>
+                <td className="px-5 py-3"><StatusBadge variant={statusBadge(d.status)}>{d.status}</StatusBadge></td>
+                <td className="px-5 py-3 text-xs text-muted-foreground">{d.lastAction}</td>
+                <td className="px-5 py-3">
+                  <button onClick={() => { setSelected(d); setTakeoverRequested(false); setClientNote(''); }} className="text-xs text-neon hover:underline">
+                    View Details
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      {/* Drawer */}
+      {/* Account Detail Drawer */}
       {selected && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setSelected(null)} />
-          <div className="relative w-full max-w-lg bg-panel border-l border-neon/20 animate-slide-in-right overflow-y-auto">
+          <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" onClick={() => setSelected(null)} />
+          <div className="relative w-full max-w-lg bg-panel border-l border-border animate-slide-in-right overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="font-display text-lg font-bold tracking-widest">{selected.name}</h2>
-                <button onClick={() => setSelected(null)} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+                <h2 className="text-base font-semibold text-foreground">{selected.name}</h2>
+                <button onClick={() => setSelected(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
               </div>
 
-              {/* AI Recommendation */}
-              <div className="bg-neon/5 border border-neon/20 rounded-lg p-4 mb-6 flex items-center gap-3">
-                <Bot className="w-5 h-5 text-neon flex-shrink-0" />
-                <div>
-                  <p className="text-[10px] font-mono text-neon tracking-widest uppercase">AI Recommends</p>
-                  <p className="text-sm text-foreground">Send Tier {selected.tier} {selected.tier === 1 ? 'soft touch' : 'firm'} SMS now</p>
-                </div>
-              </div>
-
-              {/* Info */}
-              <div className="grid grid-cols-2 gap-4 mb-6">
+              {/* Info grid */}
+              <div className="grid grid-cols-2 gap-3 mb-6">
                 {[
-                  { label: 'Total Debt', value: `$${selected.amount.toLocaleString()}` },
+                  { label: 'Original Balance', value: `$${selected.amount.toLocaleString()}` },
                   { label: 'Recovered', value: `$${selected.recovered.toLocaleString()}` },
-                  { label: 'Tier', value: `Tier ${selected.tier}` },
+                  { label: 'Recovery %', value: `${selected.amount > 0 ? Math.round((selected.recovered / selected.amount) * 100) : 0}%` },
                   { label: 'Days Overdue', value: selected.daysOverdue.toString() },
                   { label: 'AI Stage', value: selected.aiStage },
-                  { label: 'Attempts', value: selected.attempts.toString() },
+                  { label: 'Contact Attempts', value: selected.attempts.toString() },
                 ].map((item, i) => (
-                  <div key={i} className="bg-deep rounded-lg p-3">
-                    <p className="text-[9px] font-mono text-muted-foreground tracking-widest uppercase">{item.label}</p>
-                    <p className="font-mono text-sm text-foreground mt-1">{item.value}</p>
+                  <div key={i} className="bg-raised rounded-md p-3">
+                    <p className="text-[10px] text-muted-foreground mb-0.5">{item.label}</p>
+                    <p className="font-mono text-sm text-foreground">{item.value}</p>
                   </div>
                 ))}
               </div>
 
-              {/* Actions */}
-              <h3 className="font-mono text-[10px] tracking-widest text-muted-foreground mb-3 uppercase">Agent Actions</h3>
-              <div className="grid grid-cols-2 gap-2">
-                <NeonButton size="sm" loading={outreach.loading} onClick={() => outreach.send({ debtorId: selected.id, channel: 'text' })}>
-                  <MessageSquare className="w-3 h-3" /> Send SMS
-                </NeonButton>
-                <NeonButton size="sm" loading={voice.loading} onClick={() => voice.call({ debtorId: selected.id, phone: selected.phone })}>
-                  <Phone className="w-3 h-3" /> Call
-                </NeonButton>
-                <NeonButton size="sm" loading={outreach.loading} onClick={() => outreach.send({ debtorId: selected.id, channel: 'email' })}>
-                  <Mail className="w-3 h-3" /> Email
-                </NeonButton>
-                <NeonButton size="sm" loading={payment.loading} onClick={() => payment.generate({ debtorId: selected.id, amount: selected.amount - selected.recovered })}>
-                  <CreditCard className="w-3 h-3" /> Pay Link
-                </NeonButton>
-                <NeonButton size="sm" variant="outline" className="col-span-2 border-status-red/50 text-status-red" loading={escalation.loading} onClick={() => escalation.escalate({ debtorId: selected.id, reason: 'Manual takeover requested' })}>
-                  <UserCheck className="w-3 h-3" /> Manual Takeover
-                </NeonButton>
+              {/* Activity timeline */}
+              <h3 className="text-xs text-muted-foreground mb-3">Activity Timeline</h3>
+              <div className="space-y-2 mb-6">
+                {accountActivity.length > 0 ? accountActivity.map(a => (
+                  <div key={a.id} className="flex items-start gap-3 py-2 border-b border-border/30">
+                    <span className="font-mono text-[10px] text-muted-foreground w-28 flex-shrink-0">{a.timestamp}</span>
+                    <div>
+                      <StatusBadge variant={a.type.includes('Payment') ? 'green' : a.type.includes('Escalat') || a.type.includes('Broken') ? 'red' : 'blue'}>{a.type}</StatusBadge>
+                      <p className="text-xs text-foreground mt-1">{a.outcome}</p>
+                    </div>
+                  </div>
+                )) : (
+                  <p className="text-xs text-muted-foreground py-4 text-center">No activity recorded yet</p>
+                )}
               </div>
 
-              {/* Success feedback */}
-              {outreach.result && (
-                <div className="mt-4 bg-status-green/10 border border-status-green/25 rounded-lg p-3">
-                  <p className="text-[10px] font-mono text-status-green tracking-widest">✓ Message sent — {outreach.result.messageId}</p>
+              {/* Client actions */}
+              <div className="space-y-3 border-t border-border pt-5">
+                {/* Manual Takeover */}
+                {!takeoverRequested ? (
+                  <NeonButton size="sm" className="w-full" onClick={() => setShowTakeoverConfirm(true)}>
+                    Request Manual Takeover
+                  </NeonButton>
+                ) : (
+                  <div className="bg-status-yellow/8 border border-status-yellow/15 rounded-md p-4">
+                    <p className="text-xs text-status-yellow font-medium mb-1">Manual Takeover Requested</p>
+                    <p className="text-xs text-muted-foreground">A Kollection team member will contact you within 4 business hours with the debtor's full file.</p>
+                    <button onClick={() => setTakeoverRequested(false)} className="text-xs text-neon mt-2 hover:underline">Return to AI</button>
+                  </div>
+                )}
+
+                {/* Add note */}
+                <div>
+                  <label className="text-[11px] text-muted-foreground mb-1 block">Add a Note</label>
+                  <textarea
+                    value={clientNote}
+                    onChange={e => setClientNote(e.target.value)}
+                    placeholder="Internal note visible to your team and Kollection..."
+                    className="w-full bg-raised border border-border rounded-md p-3 text-sm text-foreground resize-none h-16 focus:border-neon/30 outline-none transition-colors"
+                  />
                 </div>
-              )}
-              {payment.link && (
-                <div className="mt-4 bg-neon/10 border border-neon/25 rounded-lg p-3">
-                  <p className="text-[10px] font-mono text-neon tracking-widest">✓ Payment link: {payment.link}</p>
-                </div>
-              )}
+
+                <NeonButton size="sm" variant="ghost" className="w-full">
+                  <FileText className="w-3 h-3" /> Download Account Report
+                </NeonButton>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Takeover confirmation modal */}
+      {showTakeoverConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setShowTakeoverConfirm(false)} />
+          <div className="relative bg-panel border border-border rounded-lg p-6 max-w-sm w-full mx-4">
+            <h3 className="text-sm font-semibold text-foreground mb-3">Confirm Manual Takeover</h3>
+            <p className="text-xs text-muted-foreground mb-5">
+              Taking manual control will pause AI recovery on this account. A team member will reach out to coordinate the handoff. Are you sure?
+            </p>
+            <div className="flex gap-2 justify-end">
+              <NeonButton size="sm" variant="ghost" onClick={() => setShowTakeoverConfirm(false)}>Cancel</NeonButton>
+              <NeonButton size="sm" variant="solid" onClick={() => { setTakeoverRequested(true); setShowTakeoverConfirm(false); }}>Confirm Takeover</NeonButton>
             </div>
           </div>
         </div>

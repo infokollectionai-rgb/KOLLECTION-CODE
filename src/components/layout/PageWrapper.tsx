@@ -7,11 +7,9 @@ export default function PageWrapper({ children, title }: { children: ReactNode; 
     <div className="min-h-screen bg-background">
       <Sidebar />
       <TopHeader />
-      <main className="ml-[60px] md:ml-[240px] mt-16 p-4 md:p-8 min-h-[calc(100vh-64px)]">
+      <main className="ml-[60px] md:ml-[220px] mt-14 p-5 md:p-8">
         {title && (
-          <h1 className="font-display text-lg md:text-xl font-bold tracking-widest text-foreground mb-6 uppercase">
-            {title}
-          </h1>
+          <h1 className="text-lg font-semibold text-foreground mb-6">{title}</h1>
         )}
         {children}
       </main>
