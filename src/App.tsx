@@ -7,15 +7,12 @@ import { AuthProvider } from "./context/AuthContext";
 
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
-import SignupWizard from "./pages/SignupWizard";
 import OnboardingWizard from "./pages/OnboardingWizard";
 import ExecutiveDashboard from "./pages/dashboard/ExecutiveDashboard";
 import AccountManagement from "./pages/dashboard/AccountManagement";
-import ConversationsPanel from "./pages/dashboard/ConversationsPanel";
+import ActivityLog from "./pages/dashboard/ActivityLog";
 import InstallmentPlans from "./pages/dashboard/InstallmentPlans";
-import PromiseTracker from "./pages/dashboard/PromiseTracker";
-import AnalyticsDeep from "./pages/dashboard/AnalyticsDeep";
-import HumanTakeover from "./pages/dashboard/HumanTakeover";
+import Reports from "./pages/dashboard/Reports";
 import BillingPage from "./pages/dashboard/BillingPage";
 import SettingsPage from "./pages/dashboard/SettingsPage";
 import AdminOverview from "./pages/admin/AdminOverview";
@@ -37,23 +34,20 @@ const App = () => (
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignupWizard />} />
             <Route path="/onboarding" element={<OnboardingWizard />} />
             <Route path="/dashboard" element={<ExecutiveDashboard />} />
             <Route path="/dashboard/accounts" element={<AccountManagement />} />
-            <Route path="/dashboard/conversations" element={<ConversationsPanel />} />
+            <Route path="/dashboard/activity" element={<ActivityLog />} />
             <Route path="/dashboard/installments" element={<InstallmentPlans />} />
-            <Route path="/dashboard/promises" element={<PromiseTracker />} />
-            <Route path="/dashboard/analytics" element={<AnalyticsDeep />} />
-            <Route path="/dashboard/takeover" element={<HumanTakeover />} />
+            <Route path="/dashboard/reports" element={<Reports />} />
             <Route path="/dashboard/billing" element={<BillingPage />} />
             <Route path="/dashboard/settings" element={<SettingsPage />} />
             <Route path="/admin" element={<AdminOverview />} />
             <Route path="/admin/clients" element={<AdminClients />} />
+            <Route path="/admin/applications" element={<AdminApplications />} />
             <Route path="/admin/revenue" element={<AdminRevenue />} />
             <Route path="/admin/ai-performance" element={<AdminAIPerformance />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
-            <Route path="/admin/applications" element={<AdminApplications />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </BrowserRouter>
