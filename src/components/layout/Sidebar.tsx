@@ -3,9 +3,9 @@ import { useLocation, Link } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, MessageSquare, CreditCard, Target, BarChart3, 
   UserCheck, Settings, Receipt, Building2, DollarSign, Cpu, Shield,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Menu, X
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const userNav = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -31,58 +31,102 @@ export default function Sidebar() {
   const { isAdmin } = useAuth();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const nav = isAdmin ? adminNav : userNav;
 
-  return (
-    <aside className={`fixed top-0 left-0 z-50 h-screen bg-deep border-r border-border flex flex-col transition-all duration-300 ${collapsed ? 'w-[60px]' : 'w-[240px]'}`}>
-      {/* Logo */}
-      <div className="h-16 flex items-center px-4 border-b border-border gap-2">
-        <div className="w-8 h-8 rounded-md bg-neon/20 flex items-center justify-center neon-glow-sm flex-shrink-0">
-          <Shield className="w-4 h-4 text-neon" />
-        </div>
-        {!collapsed && (
-          <span className="font-display font-bold text-sm text-neon neon-text-glow tracking-widest">
-            KOLLECTION
-          </span>
-        )}
-      </div>
+  // Auto-collapse on mobile
+  useEffect(() => {
+    const check = () => {
+      if (window.innerWidth < 768) {
+        setCollapsed(true);
+        setMobileOpen(false);
+      }
+    };
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
-      {/* Admin Badge */}
-      {isAdmin && !collapsed && (
-        <div className="mx-4 mt-3 px-2 py-1 rounded text-[10px] font-mono tracking-widest text-status-red bg-status-red/10 border border-status-red/25 text-center uppercase">
-          Admin Mode
-        </div>
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  const sidebarWidth = collapsed && !mobileOpen ? 'w-[60px]' : 'w-[240px]';
+
+  return (
+    <>
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 md:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
-      {/* Nav */}
-      <nav className="flex-1 py-4 space-y-0.5 overflow-y-auto">
-        {nav.map(item => {
-          const active = location.pathname === item.path;
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex items-center gap-3 px-5 py-3 text-[13px] font-semibold tracking-wide transition-all border-l-[3px] ${
-                active 
-                  ? 'bg-neon/10 text-neon border-l-neon neon-text-glow' 
-                  : 'text-muted-foreground border-l-transparent hover:bg-neon/5 hover:text-foreground'
-              } ${collapsed ? 'justify-center px-0' : ''}`}
-              title={collapsed ? item.label : undefined}
-            >
-              <item.icon className="w-4 h-4 flex-shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Collapse toggle */}
+      {/* Mobile toggle */}
       <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="h-10 flex items-center justify-center border-t border-border text-muted-foreground hover:text-neon transition-colors"
+        onClick={() => { setMobileOpen(!mobileOpen); setCollapsed(false); }}
+        className="fixed top-4 left-4 z-[60] md:hidden w-8 h-8 rounded-md bg-deep border border-border flex items-center justify-center text-neon"
       >
-        {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        {mobileOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
       </button>
-    </aside>
+
+      <aside className={`fixed top-0 left-0 z-50 h-screen bg-deep border-r border-border flex flex-col transition-all duration-300 ${sidebarWidth} ${
+        mobileOpen ? 'translate-x-0' : collapsed ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+      }`}>
+        {/* Logo */}
+        <div className="h-16 flex items-center px-4 border-b border-border gap-2">
+          <div className="w-8 h-8 rounded-md bg-neon/20 flex items-center justify-center neon-glow-sm flex-shrink-0">
+            <Shield className="w-4 h-4 text-neon" />
+          </div>
+          {(!collapsed || mobileOpen) && (
+            <span className="font-display font-bold text-sm text-neon neon-text-glow tracking-widest">
+              KOLLECTION
+            </span>
+          )}
+        </div>
+
+        {/* Admin Badge */}
+        {isAdmin && (!collapsed || mobileOpen) && (
+          <div className="mx-4 mt-3 px-2 py-1 rounded text-[10px] font-mono tracking-widest text-status-red bg-status-red/10 border border-status-red/25 text-center uppercase">
+            Admin Mode
+          </div>
+        )}
+        {isAdmin && collapsed && !mobileOpen && (
+          <div className="mx-2 mt-3 w-8 h-1 rounded bg-status-red mx-auto" />
+        )}
+
+        {/* Nav */}
+        <nav className="flex-1 py-4 space-y-0.5 overflow-y-auto">
+          {nav.map(item => {
+            const active = location.pathname === item.path;
+            const showLabel = !collapsed || mobileOpen;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex items-center gap-3 py-3 text-[13px] font-semibold tracking-wide transition-all border-l-[3px] ${
+                  showLabel ? 'px-5' : 'px-0 justify-center'
+                } ${
+                  active 
+                    ? 'bg-neon/10 text-neon border-l-neon neon-text-glow' 
+                    : 'text-muted-foreground border-l-transparent hover:bg-neon/5 hover:text-foreground'
+                }`}
+                title={!showLabel ? item.label : undefined}
+              >
+                <item.icon className="w-4 h-4 flex-shrink-0" />
+                {showLabel && <span>{item.label}</span>}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Collapse toggle - desktop only */}
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="hidden md:flex h-10 items-center justify-center border-t border-border text-muted-foreground hover:text-neon transition-colors"
+        >
+          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </button>
+      </aside>
+    </>
   );
 }
