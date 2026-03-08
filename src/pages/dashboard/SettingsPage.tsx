@@ -15,17 +15,10 @@ export default function SettingsPage() {
       <div className="flex gap-6 min-h-[calc(100vh-160px)]">
         <div className="w-[180px] space-y-1 flex-shrink-0">
           {tabs.map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
+            <button key={tab} onClick={() => setActiveTab(tab)}
               className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all ${
-                activeTab === tab
-                  ? 'bg-primary/10 text-primary border border-primary/20'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent'
-              }`}
-            >
-              {tab}
-            </button>
+                activeTab === tab ? 'bg-primary/10 text-primary border border-primary/20' : 'text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent'
+              }`}>{tab}</button>
           ))}
         </div>
 
@@ -91,21 +84,21 @@ export default function SettingsPage() {
             <div className="space-y-5 max-w-lg">
               <div>
                 <h3 className="text-sm font-semibold text-foreground mb-1">Payout Settings</h3>
-                <p className="text-xs text-muted-foreground">Manage your bank account and payout schedule.</p>
+                <p className="text-xs text-muted-foreground">Your payouts are transferred automatically on the 1st of every month via Stripe.</p>
               </div>
-              <div>
-                <label className="text-[11px] text-muted-foreground mb-1 block">Payout Schedule</label>
-                <select className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm text-foreground outline-none">
-                  <option>Bi-weekly</option>
-                  <option>Weekly</option>
-                  <option>Monthly</option>
-                </select>
+              <div className="bg-muted border border-border rounded-md p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Payout Schedule</p>
+                    <p className="text-sm text-foreground font-medium">Monthly — 1st of every month</p>
+                  </div>
+                  <span className="text-[10px] font-mono text-muted-foreground">Fixed policy</span>
+                </div>
               </div>
               <div>
                 <label className="text-[11px] text-muted-foreground mb-1 block">Payment Method</label>
-                <p className="text-sm text-foreground">Stripe Connect — Connected</p>
+                <p className="text-sm text-foreground">Stripe Connect — <span className="text-status-green text-xs">Connected</span></p>
               </div>
-              <NeonButton variant="solid" size="sm"><Save className="w-3 h-3" /> Save</NeonButton>
             </div>
           )}
 

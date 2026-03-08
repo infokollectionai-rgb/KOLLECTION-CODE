@@ -1,50 +1,59 @@
 export const mockDebtors = [
-  { id: 'D001', name: 'Marcus Allen', phone: '+15552104400', email: 'marcus@email.com', amount: 850, recovered: 0, tier: 1, status: 'Active', daysOverdue: 18, aiStage: 'SOFT_TOUCH', attempts: 3, lastAction: 'SMS sent — soft touch', lastActionDate: '2025-08-05', company: 'QuickCash Loans Inc.' },
-  { id: 'D002', name: 'Priya Nair', phone: '+15553328812', email: 'priya@email.com', amount: 1200, recovered: 600, tier: 2, status: 'Negotiating', daysOverdue: 45, aiStage: 'NEGOTIATING', attempts: 7, lastAction: 'Promise secured — $200', lastActionDate: '2025-08-04', company: 'QuickCash Loans Inc.' },
-  { id: 'D003', name: 'Derek Townsend', phone: '+15559015547', email: 'derek@email.com', amount: 550, recovered: 550, tier: 1, status: 'Resolved', daysOverdue: 0, aiStage: 'RESOLVED', attempts: 2, lastAction: 'Full payment received', lastActionDate: '2025-07-28', company: 'QuickCash Loans Inc.' },
-  { id: 'D004', name: 'Sandra Kim', phone: '+15557843310', email: 'sandra@email.com', amount: 1450, recovered: 0, tier: 3, status: 'Escalated', daysOverdue: 92, aiStage: 'ESCALATED', attempts: 14, lastAction: 'Escalated to human queue', lastActionDate: '2025-08-03', company: 'QuickCash Loans Inc.' },
-  { id: 'D005', name: 'James Okafor', phone: '+15556402298', email: 'james@email.com', amount: 975, recovered: 390, tier: 2, status: 'Active', daysOverdue: 38, aiStage: 'FLOOR_REACHED', attempts: 5, lastAction: 'Floor offer emailed — $585', lastActionDate: '2025-08-05', company: 'QuickCash Loans Inc.' },
-  { id: 'D006', name: 'Laura Chen', phone: '+15552197743', email: 'laura@email.com', amount: 620, recovered: 310, tier: 1, status: 'Negotiating', daysOverdue: 22, aiStage: 'NEGOTIATING', attempts: 4, lastAction: 'Payment link opened', lastActionDate: '2025-08-04', company: 'QuickCash Loans Inc.' },
-  { id: 'D007', name: 'Antoine Dubois', phone: '+15558834421', email: 'antoine@email.com', amount: 1100, recovered: 550, tier: 2, status: 'Active', daysOverdue: 55, aiStage: 'NEGOTIATING', attempts: 9, lastAction: 'Call — no answer', lastActionDate: '2025-08-03', company: 'QuickCash Loans Inc.' },
-  { id: 'D008', name: 'Rachel Gomez', phone: '+15551193820', email: 'rachel@email.com', amount: 780, recovered: 780, tier: 1, status: 'Resolved', daysOverdue: 0, aiStage: 'RESOLVED', attempts: 3, lastAction: 'Full payment received', lastActionDate: '2025-07-20', company: 'QuickCash Loans Inc.' },
-  { id: 'D009', name: 'Michael Torres', phone: '+15554478901', email: 'michael@email.com', amount: 1500, recovered: 0, tier: 3, status: 'Escalated', daysOverdue: 120, aiStage: 'LEGAL_REVIEW', attempts: 21, lastAction: 'Legal review initiated', lastActionDate: '2025-08-01', company: 'QuickCash Loans Inc.' },
-  { id: 'D010', name: 'Aisha Tremblay', phone: '+15557720034', email: 'aisha@email.com', amount: 930, recovered: 465, tier: 2, status: 'Active', daysOverdue: 33, aiStage: 'SOFT_FIRM', attempts: 6, lastAction: 'Follow-up SMS sent', lastActionDate: '2025-08-05', company: 'QuickCash Loans Inc.' },
+  { id: 'D001', name: 'Marcus Allen', phone: '+15552104400', email: 'marcus@email.com', address: '123 Main St, Montreal QC', balance: 850, recovered: 0, tier: 1, status: 'Active', daysOverdue: 18, aiStage: 'SOFT_TOUCH', attempts: 3, lastAction: 'SMS sent — soft touch', lastActionDate: '2025-08-05', company: 'QuickCash Loans Inc.' },
+  { id: 'D002', name: 'Priya Nair', phone: '+15553328812', email: 'priya@email.com', address: '456 Oak Ave, Toronto ON', balance: 1200, recovered: 600, tier: 2, status: 'Negotiating', daysOverdue: 45, aiStage: 'NEGOTIATING', attempts: 7, lastAction: 'Promise secured — $200', lastActionDate: '2025-08-04', company: 'QuickCash Loans Inc.' },
+  { id: 'D003', name: 'Derek Townsend', phone: '+15559015547', email: 'derek@email.com', address: '789 Pine Rd, Calgary AB', balance: 550, recovered: 550, tier: 1, status: 'Paid', daysOverdue: 0, aiStage: 'RESOLVED', attempts: 2, lastAction: 'Full payment received', lastActionDate: '2025-07-28', company: 'QuickCash Loans Inc.' },
+  { id: 'D004', name: 'Sandra Kim', phone: '+15557843310', email: 'sandra@email.com', address: '321 Elm St, Ottawa ON', balance: 1450, recovered: 0, tier: 3, status: 'Manual', daysOverdue: 92, aiStage: 'ESCALATED', attempts: 14, lastAction: 'Escalated to human queue', lastActionDate: '2025-08-03', company: 'QuickCash Loans Inc.' },
+  { id: 'D005', name: 'James Okafor', phone: '+15556402298', email: 'james@email.com', address: '654 Maple Dr, Vancouver BC', balance: 975, recovered: 390, tier: 2, status: 'Active', daysOverdue: 38, aiStage: 'FLOOR_REACHED', attempts: 5, lastAction: 'Floor offer emailed — $585', lastActionDate: '2025-08-05', company: 'QuickCash Loans Inc.' },
+  { id: 'D006', name: 'Laura Chen', phone: '+15552197743', email: 'laura@email.com', address: '22 King St W, Toronto ON', balance: 620, recovered: 310, tier: 1, status: 'Negotiating', daysOverdue: 22, aiStage: 'NEGOTIATING', attempts: 4, lastAction: 'Payment link opened', lastActionDate: '2025-08-04', company: 'QuickCash Loans Inc.' },
+  { id: 'D007', name: 'Antoine Dubois', phone: '+15558834421', email: 'antoine@email.com', address: '88 Rue St-Denis, Montreal QC', balance: 1100, recovered: 550, tier: 2, status: 'Active', daysOverdue: 55, aiStage: 'NEGOTIATING', attempts: 9, lastAction: 'Call — no answer', lastActionDate: '2025-08-03', company: 'QuickCash Loans Inc.' },
+  { id: 'D008', name: 'Rachel Gomez', phone: '+15551193820', email: 'rachel@email.com', address: '45 Bloor St E, Toronto ON', balance: 780, recovered: 780, tier: 1, status: 'Paid', daysOverdue: 0, aiStage: 'RESOLVED', attempts: 3, lastAction: 'Full payment received', lastActionDate: '2025-07-20', company: 'QuickCash Loans Inc.' },
+  { id: 'D009', name: 'Michael Torres', phone: '+15554478901', email: 'michael@email.com', address: '120 Portage Ave, Winnipeg MB', balance: 1500, recovered: 0, tier: 3, status: 'Escalated', daysOverdue: 120, aiStage: 'LEGAL_REVIEW', attempts: 21, lastAction: 'Legal review initiated', lastActionDate: '2025-08-01', company: 'QuickCash Loans Inc.' },
+  { id: 'D010', name: 'Aisha Tremblay', phone: '+15557720034', email: 'aisha@email.com', address: '300 Sparks St, Ottawa ON', balance: 930, recovered: 465, tier: 2, status: 'Active', daysOverdue: 33, aiStage: 'SOFT_FIRM', attempts: 6, lastAction: 'Follow-up SMS sent', lastActionDate: '2025-08-05', company: 'QuickCash Loans Inc.' },
 ];
 
 export const mockConversations = [
   {
-    id: 'CV001', debtorId: 'D001', debtor: 'Marcus Allen', channel: 'SMS',
-    status: 'Active', stage: 'NEGOTIATING', lastActivity: '10 min ago', company: 'QuickCash Loans Inc.',
+    id: 'CV001', debtorId: 'D001', debtor: 'Marcus Allen', channel: 'SMS', status: 'Active',
+    stage: 'NEGOTIATING', lastActivity: '10 min ago', company: 'QuickCash Loans Inc.',
     messages: [
-      { role: 'ai' as const, text: "Hi Marcus, this is QuickCash Loans reaching out about your account balance of $850. We'd like to help you find a solution. Can we arrange a payment plan?", time: '9:14 AM', stage: 'SOFT_TOUCH' },
-      { role: 'debtor' as const, text: "I know, I've been meaning to call. Things have been tight.", time: '9:28 AM' },
-      { role: 'ai' as const, text: "We completely understand. We can start as low as $85/month — that's 10 months to clear the balance. Would something like that work for you?", time: '9:28 AM', stage: 'NEGOTIATING' },
-      { role: 'debtor' as const, text: 'Maybe. Can I think about it?', time: '9:35 AM' },
-      { role: 'ai' as const, text: "Of course. I'll send you a secure link with the plan details. No pressure — just review it when you're ready.", time: '9:35 AM', stage: 'NEGOTIATING' },
+      { role: 'ai' as const, text: "Hi Marcus, this is Alex from QuickCash Loans. Your balance of $850 is past due. We'd like to help — reply to arrange a plan.", time: '9:14 AM', stage: 'SOFT_TOUCH' },
+      { role: 'debtor' as const, text: "Things have been tight. I know I owe it.", time: '9:28 AM' },
+      { role: 'ai' as const, text: "We completely understand. We can set up a plan at $85/month. Would that work?", time: '9:28 AM', stage: 'NEGOTIATING' },
+      { role: 'debtor' as const, text: "Maybe. Can I think about it?", time: '9:35 AM' },
+      { role: 'ai' as const, text: "Of course. I'll send you the payment link — no pressure, review when ready.", time: '9:35 AM', stage: 'NEGOTIATING' },
     ],
   },
   {
-    id: 'CV002', debtorId: 'D002', debtor: 'Priya Nair', channel: 'Voice',
-    status: 'Committed', stage: 'COMMITTED', lastActivity: '2 hrs ago', company: 'QuickCash Loans Inc.',
+    id: 'CV002', debtorId: 'D002', debtor: 'Priya Nair', channel: 'Voice', status: 'Committed',
+    stage: 'COMMITTED', lastActivity: '2 hrs ago', company: 'QuickCash Loans Inc.',
     messages: [
-      { role: 'ai' as const, text: '[VOICE CALL — 2m 23s] AI introduced account, offered $120/month plan, debtor agreed to first payment of $120 on August 15th.', time: '7:32 AM', stage: 'SOFT_TOUCH' },
-      { role: 'debtor' as const, text: "Okay I'll pay $120 on the 15th.", time: '7:34 AM' },
-      { role: 'ai' as const, text: 'Confirmed. Payment plan set: $120/month for 10 months. Payment link sent to your phone. First payment due Aug 15th.', time: '7:34 AM', stage: 'COMMITTED' },
+      {
+        role: 'ai' as const, text: '📞 Voice call — 2m 23s', time: '7:32 AM', stage: 'SOFT_TOUCH', isCall: true,
+        transcript: [
+          { speaker: 'AI', text: 'Hello, may I speak with Priya?' },
+          { speaker: 'Debtor', text: 'Speaking.' },
+          { speaker: 'AI', text: "Hi Priya, this is Alex from QuickCash Loans regarding your balance of $1,200. We'd like to find a solution. Are you open to a plan?" },
+          { speaker: 'Debtor', text: 'Yes. What are my options?' },
+          { speaker: 'AI', text: "We can do $120/month for 10 months. First payment in 7 days. Does that work?" },
+          { speaker: 'Debtor', text: 'Yes, send me the link.' },
+        ],
+      },
+      { role: 'ai' as const, text: "Payment plan confirmed: $120/month × 10 months. Link sent to your phone.", time: '7:34 AM', stage: 'COMMITTED' },
     ],
   },
   {
-    id: 'CV003', debtorId: 'D004', debtor: 'Sandra Kim', channel: 'SMS',
-    status: 'Manual', stage: 'ESCALATED', lastActivity: '1 day ago', company: 'QuickCash Loans Inc.',
+    id: 'CV003', debtorId: 'D004', debtor: 'Sandra Kim', channel: 'SMS', status: 'Manual',
+    stage: 'ESCALATED', lastActivity: '1 day ago', company: 'QuickCash Loans Inc.',
     messages: [
-      { role: 'ai' as const, text: 'Hi Sandra, this is a final notice regarding your $1,450 balance. We have a settlement option available. Please reply to discuss.', time: 'Mon 10:00 AM', stage: 'FINAL' },
-      { role: 'debtor' as const, text: 'I want to speak to a real person.', time: 'Mon 10:45 AM' },
-      { role: 'ai' as const, text: "Absolutely. I'm connecting you with a team member. You'll receive a call within 4 business hours.", time: 'Mon 10:45 AM', stage: 'ESCALATED' },
-      { role: 'system' as const, text: '── Manual takeover requested ── Kollection team notified.', time: 'Mon 10:46 AM' },
+      { role: 'ai' as const, text: "Hi Sandra, final notice re: your $1,450 balance. Settlement available — reply to discuss.", time: 'Mon 10:00 AM', stage: 'FINAL' },
+      { role: 'debtor' as const, text: "I want to speak to a real person.", time: 'Mon 10:45 AM' },
+      { role: 'ai' as const, text: "Absolutely. Connecting you with a team member. You'll hear from us within 4 business hours.", time: 'Mon 10:45 AM', stage: 'ESCALATED' },
+      { role: 'system' as const, text: '── Manual takeover requested · Kollection team notified ──', time: 'Mon 10:46 AM' },
     ],
   },
   {
-    id: 'CV004', debtorId: 'D005', debtor: 'James Okafor', channel: 'Email',
-    status: 'Active', stage: 'FLOOR_REACHED', lastActivity: '3 hrs ago', company: 'QuickCash Loans Inc.',
+    id: 'CV004', debtorId: 'D005', debtor: 'James Okafor', channel: 'Email', status: 'Active',
+    stage: 'FLOOR_REACHED', lastActivity: '3 hrs ago', company: 'QuickCash Loans Inc.',
     messages: [
       { role: 'ai' as const, text: "Dear James, we're reaching out regarding your outstanding balance of $975 with QuickCash Loans. We have a settlement offer that could significantly reduce your amount owed.", time: '6:30 AM', stage: 'NEGOTIATING' },
       { role: 'debtor' as const, text: "What's the offer?", time: '8:15 AM' },
@@ -52,8 +61,8 @@ export const mockConversations = [
     ],
   },
   {
-    id: 'CV005', debtorId: 'D006', debtor: 'Laura Chen', channel: 'SMS',
-    status: 'Active', stage: 'NEGOTIATING', lastActivity: '5 hrs ago', company: 'QuickCash Loans Inc.',
+    id: 'CV005', debtorId: 'D006', debtor: 'Laura Chen', channel: 'SMS', status: 'Active',
+    stage: 'NEGOTIATING', lastActivity: '5 hrs ago', company: 'QuickCash Loans Inc.',
     messages: [
       { role: 'ai' as const, text: "Hi Laura, this is QuickCash Loans. Your account has a balance of $620. We'd like to set up a comfortable payment plan. Would $155/month work?", time: '11:00 AM', stage: 'SOFT_TOUCH' },
       { role: 'debtor' as const, text: "That's a bit high. Can we do less?", time: '11:30 AM' },
@@ -97,15 +106,21 @@ export const mockMonthlyData = [
   { month: 'Aug', gross: 11200, kollection: 5600, client: 5600 },
 ];
 
+export const mockBillingData = {
+  setupFeePaid: { amount: 299, date: 'Jan 15, 2025' },
+  currentMonth: { recovered: 8420, kollection: 4210, client: 4210, payoutDate: 'Sep 1, 2025', status: 'SCHEDULED' },
+  history: [
+    { month: 'Aug 2025', recovered: 8420, kollection: 4210, client: 4210, status: 'Scheduled', transferId: null },
+    { month: 'Jul 2025', recovered: 7800, kollection: 3900, client: 3900, status: 'Paid', transferId: 'tr_3Pxxx1' },
+    { month: 'Jun 2025', recovered: 5400, kollection: 2700, client: 2700, status: 'Paid', transferId: 'tr_3Pxxx2' },
+    { month: 'May 2025', recovered: 9100, kollection: 4550, client: 4550, status: 'Paid', transferId: 'tr_3Pxxx3' },
+    { month: 'Apr 2025', recovered: 6200, kollection: 3100, client: 3100, status: 'Paid', transferId: 'tr_3Pxxx4' },
+  ],
+};
+
 export const mockBilling = {
   setupFeePaid: '$299 — Jan 15, 2025',
-  currentMonth: {
-    recovered: 8420,
-    kollectionFee: 4210,
-    yourPayout: 4210,
-    payoutDate: 'Aug 31, 2025',
-    status: 'Pending',
-  },
+  currentMonth: { recovered: 8420, kollectionFee: 4210, yourPayout: 4210, payoutDate: 'Aug 31, 2025', status: 'Pending' },
   history: [
     { month: 'Mar 2025', recovered: 6200, fee: 3100, payout: 3100, status: 'Paid' },
     { month: 'Apr 2025', recovered: 7800, fee: 3900, payout: 3900, status: 'Paid' },

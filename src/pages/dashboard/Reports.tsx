@@ -4,9 +4,9 @@ import NeonButton from '@/components/ui/NeonButton';
 import { mockDebtors, mockMonthlyData } from '@/data/mockData';
 import { Download } from 'lucide-react';
 
-const totalAssigned = mockDebtors.reduce((s, d) => s + d.amount, 0);
+const totalAssigned = mockDebtors.reduce((s, d) => s + d.balance, 0);
 const totalRecovered = mockDebtors.reduce((s, d) => s + d.recovered, 0);
-const resolved = mockDebtors.filter(d => d.status === 'Resolved').length;
+const resolved = mockDebtors.filter(d => d.status === 'Paid').length;
 
 export default function Reports() {
   return (
