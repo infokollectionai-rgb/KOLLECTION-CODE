@@ -53,6 +53,7 @@ const App = () => (
             <Route path="/admin/revenue" element={<AdminRevenue />} />
             <Route path="/admin/ai-performance" element={<AdminAIPerformance />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
+            <Route path="/admin/applications" element={<AdminApplications />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </BrowserRouter>
