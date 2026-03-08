@@ -12,5 +12,13 @@ export const DEMO_USERS = [
     role: 'user' as const,
     name: 'Marc Tremblay',
     company: 'QuickCash Loans Inc.',
+    setupFeePaid: 5000,
+    recoveryFeePct: 50,
+    operationsFeePct: 8,
+    twilioConnected: true,
+    stripeConnected: true,
+    vapiConnected: true,
+    payoutSchedule: 'monthly',
+    payoutDay: 1,
   },
 ];
