@@ -20,15 +20,15 @@ const features = [
 ];
 
 const steps = [
-  { num: '01', title: 'Submit your overdue accounts', desc: 'Upload a CSV or connect your loan management system. We import and categorize your accounts automatically.' },
-  { num: '02', title: 'AI begins outreach immediately', desc: 'Our system contacts debtors via SMS, email, and phone. It negotiates payments, sets up installment plans, and tracks promises.' },
-  { num: '03', title: 'You receive 50% of every dollar collected', desc: 'Recovered funds are transferred to your bank account on your chosen schedule — weekly, bi-weekly, or monthly.' },
+  { num: '01', title: 'Submit your overdue accounts', desc: 'Upload a list of overdue accounts. We import them within 24 hours.' },
+  { num: '02', title: 'AI handles outreach', desc: 'SMS, email, and phone calls go out automatically. You monitor progress in real time.' },
+  { num: '03', title: 'Receive your 50%', desc: 'Every dollar collected is split 50/50. Transferred on your chosen schedule.' },
 ];
 
 const testimonials = [
-  { quote: 'We recovered $42,000 in the first month alone. The AI handles everything — we just watch the dashboard.', name: 'Sarah J.', company: 'QuickCash Loans', role: 'Operations Director', rating: 5 },
-  { quote: "No more hiring collection agents. Kollection's system is faster, cheaper, and more compliant than anything we've used.", name: 'Mike C.', company: 'EasyPay Lending', role: 'CEO', rating: 5 },
-  { quote: 'The 50/50 model means they\'re incentivized to actually collect. Our recovery rate went from 12% to 36%.', name: 'Amy W.', company: 'TrustBridge Financial', role: 'VP Collections', rating: 5 },
+  { quote: 'We recovered $42,000 in the first month alone. The AI handles everything — we just watch the dashboard.', name: 'Sarah J.', company: 'QuickCash Loans', role: 'Operations Director' },
+  { quote: "No more hiring collection agents. Kollection's system is faster, cheaper, and more compliant than anything we've used.", name: 'Mike C.', company: 'EasyPay Lending', role: 'CEO' },
+  { quote: 'The 50/50 model means they\'re incentivized to actually collect. Our recovery rate went from 12% to 36%.', name: 'Amy W.', company: 'TrustBridge Financial', role: 'VP Collections' },
 ];
 
 const faqs = [
@@ -40,12 +40,6 @@ const faqs = [
   { q: 'How do I receive my payouts?', a: 'Via Stripe Connect or direct bank transfer (ACH/EFT). You choose weekly, bi-weekly, or monthly payouts during onboarding.' },
 ];
 
-const feeExamples = [
-  { recovered: 500, yours: 250, ours: 250 },
-  { recovered: 800, yours: 400, ours: 400 },
-  { recovered: 1200, yours: 600, ours: 600 },
-];
-
 export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
@@ -55,8 +49,8 @@ export default function LandingPage() {
       <nav className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-6 h-16">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-neon/10 flex items-center justify-center">
-              <Shield className="w-4 h-4 text-neon" />
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Shield className="w-4 h-4 text-primary" />
             </div>
             <span className="font-semibold text-foreground tracking-tight">Kollection</span>
           </div>
@@ -68,7 +62,7 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-3">
             <Link to="/login"><NeonButton size="sm">Sign In</NeonButton></Link>
-            <Link to="/signup"><NeonButton variant="solid" size="sm">Get Started</NeonButton></Link>
+            <Link to="/signup"><NeonButton variant="solid" size="sm">Apply for Account</NeonButton></Link>
           </div>
         </div>
       </nav>
@@ -77,22 +71,17 @@ export default function LandingPage() {
       <section className="pt-36 pb-24 relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_hsl(205_100%_50%_/_0.04)_0%,_transparent_70%)]" />
         <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-panel text-xs text-muted-foreground mb-8">
-            <span className="w-1.5 h-1.5 rounded-full bg-status-green animate-pulse" />
-            AI-powered debt recovery for lending companies
-          </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.1] text-foreground mb-6 tracking-tight">
-            Stop Writing Off<br />
-            <span className="text-neon">Bad Debt.</span>
+            We Recover Your<br />Outstanding Loans.
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-            Kollection's AI contacts your overdue borrowers by SMS, email, and phone — negotiates payments, 
-            sets up installment plans, and recovers your money. You keep 50% of everything collected.
+            AI-powered outreach contacts your overdue accounts by SMS, email, and phone.
+            You track the results. We split what we collect.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center mb-16">
             <Link to="/signup">
               <NeonButton variant="solid" className="text-base px-8 py-3">
-                Start Recovering Now <ArrowRight className="w-4 h-4" />
+                Apply for an Account <ArrowRight className="w-4 h-4" />
               </NeonButton>
             </Link>
             <a href="#how-it-works">
@@ -100,7 +89,6 @@ export default function LandingPage() {
             </a>
           </div>
 
-          {/* Stats bar */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
             {stats.map(s => (
               <div key={s.label} className="text-center">
@@ -112,16 +100,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Social proof strip */}
-      <section className="border-y border-border bg-panel/50 py-4">
-        <div className="max-w-4xl mx-auto px-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-          <Shield className="w-3.5 h-3.5 text-neon" />
-          Trusted by payday lenders, personal loan providers, and credit unions across North America
-        </div>
-      </section>
-
       {/* Features */}
-      <section id="features" className="py-24">
+      <section id="features" className="py-24 border-t border-border">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-foreground mb-3">Everything You Need to Recover Outstanding Loans</h2>
@@ -129,9 +109,9 @@ export default function LandingPage() {
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
             {features.map(f => (
-              <div key={f.title} className="bg-panel border border-border rounded-xl p-6 hover:border-neon/15 transition-colors group">
-                <div className="w-10 h-10 rounded-lg bg-neon/8 flex items-center justify-center mb-4 group-hover:bg-neon/12 transition-colors">
-                  <f.icon className="w-5 h-5 text-neon" />
+              <div key={f.title} className="bg-card border border-border rounded-xl p-6 hover:border-primary/15 transition-colors group">
+                <div className="w-10 h-10 rounded-lg bg-primary/8 flex items-center justify-center mb-4 group-hover:bg-primary/12 transition-colors">
+                  <f.icon className="w-5 h-5 text-primary" />
                 </div>
                 <h3 className="text-sm font-semibold text-foreground mb-2">{f.title}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
@@ -149,10 +129,10 @@ export default function LandingPage() {
             <p className="text-muted-foreground">Three steps. No complexity.</p>
           </div>
           <div className="space-y-8">
-            {steps.map((item, i) => (
+            {steps.map(item => (
               <div key={item.num} className="flex gap-6 items-start">
-                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-neon/8 border border-neon/15 flex items-center justify-center">
-                  <span className="font-mono text-neon font-semibold text-sm">{item.num}</span>
+                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-primary/8 border border-primary/15 flex items-center justify-center">
+                  <span className="font-mono text-primary font-semibold text-sm">{item.num}</span>
                 </div>
                 <div className="pt-1">
                   <h3 className="text-base font-semibold text-foreground mb-1">{item.title}</h3>
@@ -161,11 +141,6 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
-          <div className="text-center mt-12">
-            <Link to="/signup">
-              <NeonButton variant="solid">Apply for an Account <ArrowRight className="w-3 h-3" /></NeonButton>
-            </Link>
-          </div>
         </div>
       </section>
 
@@ -173,53 +148,17 @@ export default function LandingPage() {
       <section id="pricing" className="py-24 border-t border-border">
         <div className="max-w-3xl mx-auto px-6">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-foreground mb-3">Simple, Performance-Based Pricing</h2>
-            <p className="text-muted-foreground">We only earn when you earn. No monthly fees. No contracts.</p>
+            <h2 className="text-3xl font-bold text-foreground mb-3">How We Charge</h2>
+            <p className="text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed">
+              One-time setup fee to activate your account.<br />
+              Then 50% of every dollar we recover — that's it.<br />
+              If we collect $0, you owe $0.
+            </p>
           </div>
-
-          <div className="bg-panel border border-border rounded-xl p-8 md:p-10 mb-8">
-            <div className="grid md:grid-cols-2 gap-8 items-center">
-              <div>
-                <div className="space-y-4 mb-6">
-                  {[
-                    { label: 'Setup fee', value: '$299 one-time' },
-                    { label: 'Recovery fee', value: '50% of collected amounts' },
-                    { label: 'Monthly fee', value: '$0' },
-                    { label: 'Contracts', value: 'None' },
-                  ].map(item => (
-                    <div key={item.label} className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">{item.label}</span>
-                      <span className="text-sm font-semibold text-foreground font-mono">{item.value}</span>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  If we collect $0, you owe $0 beyond the one-time setup. Our AI is incentivized to recover as much as possible.
-                </p>
-              </div>
-
-              <div className="bg-raised border border-border rounded-lg p-5">
-                <p className="text-[11px] text-muted-foreground mb-4 font-mono tracking-wide">EXAMPLE RECOVERIES</p>
-                <div className="space-y-3">
-                  <div className="grid grid-cols-3 text-[10px] text-muted-foreground pb-2 border-b border-border">
-                    <span>RECOVERED</span><span className="text-center">YOU GET</span><span className="text-right">WE GET</span>
-                  </div>
-                  {feeExamples.map(ex => (
-                    <div key={ex.recovered} className="grid grid-cols-3 text-sm font-mono">
-                      <span className="text-foreground">${ex.recovered}</span>
-                      <span className="text-center text-status-green">${ex.yours}</span>
-                      <span className="text-right text-muted-foreground">${ex.ours}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
           <div className="text-center">
             <Link to="/signup">
               <NeonButton variant="solid" className="text-base px-8 py-3">
-                Start Recovering Now <ArrowRight className="w-4 h-4" />
+                Apply for an Account <ArrowRight className="w-4 h-4" />
               </NeonButton>
             </Link>
           </div>
@@ -234,12 +173,7 @@ export default function LandingPage() {
           </div>
           <div className="grid md:grid-cols-3 gap-5">
             {testimonials.map((t, i) => (
-              <div key={i} className="bg-panel border border-border rounded-xl p-6">
-                <div className="flex gap-0.5 mb-4">
-                  {Array.from({ length: t.rating }).map((_, j) => (
-                    <Star key={j} className="w-3.5 h-3.5 text-status-yellow fill-status-yellow" />
-                  ))}
-                </div>
+              <div key={i} className="bg-card border border-border rounded-xl p-6">
                 <p className="text-sm text-foreground leading-relaxed mb-5">"{t.quote}"</p>
                 <div>
                   <p className="text-sm font-semibold text-foreground">{t.name}</p>
@@ -262,7 +196,7 @@ export default function LandingPage() {
               <div key={i} className="border border-border rounded-lg overflow-hidden">
                 <button
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-panel/50 transition-colors"
+                  className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-card/50 transition-colors"
                 >
                   <span className="text-sm font-medium text-foreground">{faq.q}</span>
                   <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform flex-shrink-0 ml-4 ${openFaq === i ? 'rotate-180' : ''}`} />
@@ -288,7 +222,7 @@ export default function LandingPage() {
           </p>
           <Link to="/signup">
             <NeonButton variant="solid" className="text-base px-8 py-3">
-              Start Your Free Application <ArrowRight className="w-4 h-4" />
+              Start Your Application <ArrowRight className="w-4 h-4" />
             </NeonButton>
           </Link>
         </div>
@@ -296,46 +230,40 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="border-t border-border py-10">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Shield className="w-4 h-4 text-neon" />
-                <span className="font-semibold text-foreground">Kollection</span>
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">AI-powered debt recovery for lending companies across North America.</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-foreground mb-3">Product</p>
-              <div className="space-y-2">
-                <a href="#features" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">Features</a>
-                <a href="#pricing" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
-                <a href="#how-it-works" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">How It Works</a>
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-foreground mb-3">Company</p>
-              <div className="space-y-2">
-                <a href="#" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">About</a>
-                <a href="#" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">Contact</a>
-                <a href="#" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">Careers</a>
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-foreground mb-3">Legal</p>
-              <div className="space-y-2">
-                <a href="#" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">Terms of Service</a>
-                <a href="#" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">Privacy Policy</a>
-                <a href="#" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">Compliance</a>
-              </div>
-            </div>
+        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <Shield className="w-3.5 h-3.5 text-primary" />
+            <span className="text-sm font-semibold text-foreground">Kollection</span>
           </div>
-          <div className="border-t border-border pt-6 flex flex-col md:flex-row items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">© 2025 Kollection. All rights reserved.</p>
-            <p className="text-xs text-muted-foreground">partners@kollection.io</p>
+          <div className="flex items-center gap-6 text-xs text-muted-foreground">
+            <a href="#" className="hover:text-foreground transition-colors">Security</a>
+            <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
+            <a href="#" className="hover:text-foreground transition-colors">Contact</a>
+            <span>partners@kollection.io</span>
           </div>
+          <p className="text-xs text-muted-foreground">© 2025 Kollection Inc.</p>
         </div>
       </footer>
+
+      {/* Demo Access Card */}
+      <div className="fixed bottom-5 right-5 z-50 bg-card border border-border rounded-lg p-4 w-[280px] shadow-lg">
+        <p className="text-[10px] font-mono text-muted-foreground tracking-wider mb-3">DEMO ACCESS</p>
+        <div className="space-y-2.5 text-xs">
+          <div>
+            <p className="text-muted-foreground mb-0.5">Admin</p>
+            <p className="font-mono text-foreground">admin@kollection.ca</p>
+            <p className="font-mono text-muted-foreground">Admin2025!</p>
+          </div>
+          <div className="border-t border-border pt-2">
+            <p className="text-muted-foreground mb-0.5">Client</p>
+            <p className="font-mono text-foreground">demo@quickcashloans.ca</p>
+            <p className="font-mono text-muted-foreground">Demo2025!</p>
+          </div>
+        </div>
+        <Link to="/login" className="block mt-3">
+          <NeonButton variant="solid" size="sm" className="w-full text-[11px]">Sign In to Demo</NeonButton>
+        </Link>
+      </div>
     </div>
   );
 }

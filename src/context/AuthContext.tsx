@@ -1,21 +1,42 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode } from 'react';
+import { DEMO_USERS } from '@/data/demoUsers';
 
 type Role = 'user' | 'admin';
 
-interface AuthContextType {
+interface User {
+  email: string;
   role: Role;
-  setRole: (role: Role) => void;
+  name: string;
+  company: string;
+}
+
+interface AuthContextType {
+  user: User | null;
+  login: (email: string, password: string) => { success: boolean; role?: Role; error?: string };
+  logout: () => void;
   isAdmin: boolean;
-  companyName: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [role, setRole] = useState<Role>('user');
+  const [user, setUser] = useState<User | null>(null);
+
+  const login = (email: string, password: string) => {
+    const match = DEMO_USERS.find(
+      u => u.email === email && u.password === password
+    );
+    if (match) {
+      setUser({ email: match.email, role: match.role, name: match.name, company: match.company });
+      return { success: true, role: match.role };
+    }
+    return { success: false, error: 'Invalid email or password' };
+  };
+
+  const logout = () => setUser(null);
 
   return (
-    <AuthContext.Provider value={{ role, setRole, isAdmin: role === 'admin', companyName: 'MediCredit Corp' }}>
+    <AuthContext.Provider value={{ user, login, logout, isAdmin: user?.role === 'admin' }}>
       {children}
     </AuthContext.Provider>
   );
