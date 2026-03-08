@@ -7,6 +7,7 @@ import { AuthProvider } from "./context/AuthContext";
 
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
+import SignupWizard from "./pages/SignupWizard";
 import ExecutiveDashboard from "./pages/dashboard/ExecutiveDashboard";
 import AccountManagement from "./pages/dashboard/AccountManagement";
 import ConversationsPanel from "./pages/dashboard/ConversationsPanel";
