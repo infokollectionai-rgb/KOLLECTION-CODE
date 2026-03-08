@@ -35,6 +35,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupWizard />} />
             <Route path="/dashboard" element={<ExecutiveDashboard />} />
             <Route path="/dashboard/accounts" element={<AccountManagement />} />
             <Route path="/dashboard/conversations" element={<ConversationsPanel />} />
