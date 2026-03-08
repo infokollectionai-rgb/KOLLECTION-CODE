@@ -21,9 +21,9 @@ import BillingPage from "./pages/dashboard/BillingPage";
 import SettingsPage from "./pages/dashboard/SettingsPage";
 import AdminOverview from "./pages/admin/AdminOverview";
 import AdminClients from "./pages/admin/AdminClients";
+import AdminClientDetail from "./pages/admin/AdminClientDetail";
 import AdminConversations from "./pages/admin/AdminConversations";
-import AdminRevenue from "./pages/admin/AdminRevenue";
-import AdminApplications from "./pages/admin/AdminApplications";
+import AdminBilling from "./pages/admin/AdminBilling";
 import AdminSettings from "./pages/admin/AdminSettings";
 
 const queryClient = new QueryClient();
@@ -57,9 +57,9 @@ function AppRoutes() {
       {/* Admin */}
       <Route path="/admin" element={<ProtectedRoute role="admin"><AdminOverview /></ProtectedRoute>} />
       <Route path="/admin/clients" element={<ProtectedRoute role="admin"><AdminClients /></ProtectedRoute>} />
+      <Route path="/admin/clients/:id" element={<ProtectedRoute role="admin"><AdminClientDetail /></ProtectedRoute>} />
       <Route path="/admin/conversations" element={<ProtectedRoute role="admin"><AdminConversations /></ProtectedRoute>} />
-      <Route path="/admin/applications" element={<ProtectedRoute role="admin"><AdminApplications /></ProtectedRoute>} />
-      <Route path="/admin/revenue" element={<ProtectedRoute role="admin"><AdminRevenue /></ProtectedRoute>} />
+      <Route path="/admin/billing" element={<ProtectedRoute role="admin"><AdminBilling /></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute role="admin"><AdminSettings /></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
