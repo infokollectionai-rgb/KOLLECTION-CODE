@@ -8,6 +8,7 @@ import { AuthProvider } from "./context/AuthContext";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import SignupWizard from "./pages/SignupWizard";
+import OnboardingWizard from "./pages/OnboardingWizard";
 import ExecutiveDashboard from "./pages/dashboard/ExecutiveDashboard";
 import AccountManagement from "./pages/dashboard/AccountManagement";
 import ConversationsPanel from "./pages/dashboard/ConversationsPanel";
@@ -22,6 +23,7 @@ import AdminClients from "./pages/admin/AdminClients";
 import AdminRevenue from "./pages/admin/AdminRevenue";
 import AdminAIPerformance from "./pages/admin/AdminAIPerformance";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminApplications from "./pages/admin/AdminApplications";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +38,7 @@ const App = () => (
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupWizard />} />
+            <Route path="/onboarding" element={<OnboardingWizard />} />
             <Route path="/dashboard" element={<ExecutiveDashboard />} />
             <Route path="/dashboard/accounts" element={<AccountManagement />} />
             <Route path="/dashboard/conversations" element={<ConversationsPanel />} />
@@ -50,6 +53,7 @@ const App = () => (
             <Route path="/admin/revenue" element={<AdminRevenue />} />
             <Route path="/admin/ai-performance" element={<AdminAIPerformance />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
+            <Route path="/admin/applications" element={<AdminApplications />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </BrowserRouter>

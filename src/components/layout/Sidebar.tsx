@@ -3,7 +3,7 @@ import { useLocation, Link } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, MessageSquare, CreditCard, Target, BarChart3, 
   UserCheck, Settings, Receipt, Building2, DollarSign, Cpu, Shield,
-  ChevronLeft, ChevronRight, Menu, X
+  ChevronLeft, ChevronRight, Menu, X, FileText
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -22,6 +22,7 @@ const userNav = [
 const adminNav = [
   { path: '/admin', label: 'Overview', icon: LayoutDashboard },
   { path: '/admin/clients', label: 'Clients', icon: Building2 },
+  { path: '/admin/applications', label: 'Applications', icon: FileText, badge: 2 },
   { path: '/admin/revenue', label: 'Revenue', icon: DollarSign },
   { path: '/admin/ai-performance', label: 'AI Performance', icon: Cpu },
   { path: '/admin/settings', label: 'Settings', icon: Settings },
@@ -113,7 +114,12 @@ export default function Sidebar() {
                 title={!showLabel ? item.label : undefined}
               >
                 <item.icon className="w-4 h-4 flex-shrink-0" />
-                {showLabel && <span>{item.label}</span>}
+                {showLabel && <span className="flex-1">{item.label}</span>}
+                {showLabel && 'badge' in item && (item as any).badge > 0 && (
+                  <span className="ml-auto bg-status-yellow/20 text-status-yellow border border-status-yellow/30 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded tracking-wider">
+                    {(item as any).badge}
+                  </span>
+                )}
               </Link>
             );
           })}

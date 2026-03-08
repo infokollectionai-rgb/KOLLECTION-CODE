@@ -34,10 +34,10 @@ const problems = [
   { icon: AlertTriangle, title: 'Compliance Risk', desc: 'One wrong call at the wrong time. One aggressive message. TCPA violations cost $500-$1,500 per incident. The risk is constant.' },
 ];
 
-const pricing = [
-  { name: 'Starter', price: '$499', period: '/mo', features: ['Up to 100 accounts', 'SMS + Email outreach', 'Basic analytics', 'Standard support'], featured: false },
-  { name: 'Performance', price: '$1,499', period: '/mo', features: ['Up to 1,000 accounts', 'All channels + Voice AI', 'Advanced analytics + Heatmaps', 'Priority support', 'Custom AI tone'], featured: true },
-  { name: 'Enterprise', price: 'Custom', period: '', features: ['Unlimited accounts', 'Full API access', 'Dedicated success manager', 'Custom integrations', 'SLA guarantee'], featured: false },
+const feeExamples = [
+  { recovered: 500, label: '$500 Recovery' },
+  { recovered: 800, label: '$800 Recovery' },
+  { recovered: 1200, label: '$1,200 Recovery' },
 ];
 
 export default function LandingPage() {
@@ -62,8 +62,8 @@ export default function LandingPage() {
             <Link to="/login">
               <NeonButton variant="outline" size="sm">Login</NeonButton>
             </Link>
-            <Link to="/signup">
-              <NeonButton variant="solid" size="sm">Request Demo</NeonButton>
+            <Link to="/onboarding">
+              <NeonButton variant="solid" size="sm">Partner Sign Up</NeonButton>
             </Link>
           </div>
         </div>
@@ -79,15 +79,15 @@ export default function LandingPage() {
               <span className="text-neon neon-text-glow">MAXIMIZE RECOVERY.</span>
             </h1>
             <p className="text-lg text-muted-foreground font-light mb-8 max-w-lg">
-              Kollection's AI agents negotiate, track, and close debt 24/7 — across SMS, voice, and email.
+              Kollection's AI agents negotiate, track, and close debt 24/7 — across SMS, voice, and email. You only pay when we recover.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Link to="/signup"><NeonButton variant="solid">Request Demo</NeonButton></Link>
+              <Link to="/onboarding"><NeonButton variant="solid">Start Recovering — Free Signup <ArrowRight className="w-3 h-3" /></NeonButton></Link>
               <Link to="/dashboard"><NeonButton variant="outline">View Platform <ArrowRight className="w-3 h-3" /></NeonButton></Link>
             </div>
             <div className="flex gap-8 mt-12">
               {[
-                { value: 12, prefix: '$', suffix: 'M+', label: 'Recovered' },
+                { value: 2, prefix: '$', suffix: 'M+', label: 'Recovered' },
                 { value: 94, suffix: '%', label: 'AI Resolution' },
                 { value: 40, suffix: '+', label: 'Lenders' },
               ].map((stat, i) => (
@@ -113,7 +113,7 @@ export default function LandingPage() {
                 <span className="w-2 h-2 rounded-full bg-status-green animate-pulse-green" />
               </div>
               <div className="space-y-3">
-                {['Marcus Allen — $4,200', 'Priya Nair — $11,800', 'Laura Chen — $3,100'].map((item, i) => (
+                {['Marcus Allen — $850', 'Priya Nair — $1,200', 'Laura Chen — $620'].map((item, i) => (
                   <div key={i} className="flex items-center justify-between py-2 border-b border-border">
                     <span className="text-sm text-foreground">{item.split(' — ')[0]}</span>
                     <span className="font-mono text-sm text-neon">{item.split(' — ')[1]}</span>
@@ -208,12 +208,10 @@ export default function LandingPage() {
                 <span className="w-2 h-2 rounded-full bg-status-green" />
                 <span className="ml-2 font-mono text-[10px] text-muted-foreground tracking-widest">COMMAND CENTER</span>
               </div>
-
-              {/* Mini KPI Row */}
               <div className="grid grid-cols-3 gap-3 mb-4">
                 {[
-                  { label: 'Recovered', value: '$1.8M', color: 'text-status-green' },
-                  { label: 'Rate', value: '94%', color: 'text-neon' },
+                  { label: 'Recovered', value: '$31.8K', color: 'text-status-green' },
+                  { label: 'Rate', value: '34%', color: 'text-neon' },
                   { label: 'Active', value: '847', color: 'text-foreground' },
                 ].map((kpi, i) => (
                   <div key={i} className="bg-deep rounded-lg p-3 border border-border">
@@ -222,8 +220,6 @@ export default function LandingPage() {
                   </div>
                 ))}
               </div>
-
-              {/* Mini chart bars */}
               <div className="flex items-end gap-1 h-20 mb-4">
                 {[40, 65, 55, 80, 70, 90, 85, 75, 95, 60, 88, 72].map((h, i) => (
                   <motion.div
@@ -237,11 +233,9 @@ export default function LandingPage() {
                   />
                 ))}
               </div>
-
-              {/* Mini activity */}
               <div className="space-y-2">
                 {[
-                  { text: 'AI sent SMS to Marcus Allen', badge: 'SUCCESS' },
+                  { text: 'AI sent SMS to Marcus Allen — $850', badge: 'SUCCESS' },
                   { text: 'Voice call completed — Priya Nair', badge: 'PROMISE' },
                   { text: 'Payment link opened — Laura Chen', badge: 'ACTIVE' },
                 ].map((item, i) => (
@@ -280,42 +274,69 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Pricing */}
+      {/* Pricing — Single 50/50 Model */}
       <section id="pricing" className="py-24">
-        <div className="max-w-5xl mx-auto px-6">
-          <h2 className="font-display text-2xl font-bold text-center mb-16 tracking-widest">PRICING</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            {pricing.map((p, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.15 }}
-                className={`bg-panel rounded-xl p-8 border ${p.featured ? 'border-neon neon-glow-md' : 'border-border'}`}
-              >
-                <h3 className="font-display text-sm font-bold tracking-widest mb-1">{p.name}</h3>
-                <p className="font-display text-3xl font-bold text-foreground mb-1">
-                  {p.price}<span className="text-sm text-muted-foreground font-body">{p.period}</span>
-                </p>
-                <ul className="mt-6 space-y-3">
-                  {p.features.map((f, j) => (
-                    <li key={j} className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <CheckCircle className="w-3 h-3 text-neon flex-shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-8">
-                  <Link to="/signup">
-                    <NeonButton variant={p.featured ? 'solid' : 'outline'} className="w-full">
-                      {p.featured ? 'Get Started' : 'Contact Us'}
-                    </NeonButton>
-                  </Link>
+        <div className="max-w-4xl mx-auto px-6">
+          <h2 className="font-display text-2xl font-bold text-center mb-2 tracking-widest">ONE SIMPLE RULE</h2>
+          <p className="text-center text-neon neon-text-glow font-display text-lg font-bold tracking-widest mb-12">WE ONLY EAT WHEN YOU EAT</p>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="bg-panel border border-neon rounded-xl p-8 md:p-12 shadow-[0_0_30px_rgba(0,200,255,0.2)] text-center"
+          >
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              {['No monthly fees', 'No setup costs', 'No contracts', '50% of recovered'].map((item, i) => (
+                <div key={i} className="flex items-center gap-2 justify-center">
+                  <CheckCircle className="w-4 h-4 text-neon flex-shrink-0" />
+                  <span className="text-sm text-foreground font-semibold">{item}</span>
                 </div>
-              </motion.div>
-            ))}
-          </div>
+              ))}
+            </div>
+
+            <div className="border-t border-border pt-8 mb-8">
+              <p className="font-mono text-[10px] text-muted-foreground tracking-widest uppercase mb-4">Fee Examples</p>
+              <div className="grid grid-cols-3 gap-4">
+                {feeExamples.map(ex => (
+                  <div key={ex.label} className="bg-deep border border-border rounded-lg p-4">
+                    <p className="text-[10px] font-mono text-muted-foreground tracking-widest mb-2">{ex.label}</p>
+                    <div className="space-y-1 text-sm font-mono">
+                      <p className="text-status-green">You get: ${ex.recovered / 2}</p>
+                      <p className="text-muted-foreground">We get: ${ex.recovered / 2}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <p className="text-sm text-muted-foreground mb-8">
+              If we don't recover anything, you pay nothing. Our AI works on pure performance.
+            </p>
+
+            <Link to="/onboarding">
+              <NeonButton variant="solid" className="text-base px-8 py-3">
+                Start Recovering Now <ArrowRight className="w-4 h-4" />
+              </NeonButton>
+            </Link>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Pre-footer CTA */}
+      <section className="py-20 bg-deep border-t border-border">
+        <div className="max-w-3xl mx-auto px-6 text-center">
+          <h2 className="font-display text-2xl font-bold tracking-widest mb-4">
+            READY TO STOP WRITING OFF <span className="text-neon neon-text-glow">BAD DEBT?</span>
+          </h2>
+          <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
+            Sign up in 6 steps. No contracts. No upfront cost. We recover your money — you keep 50% of every dollar we bring back.
+          </p>
+          <Link to="/onboarding">
+            <NeonButton variant="solid" className="text-base px-8 py-3">
+              Start Your Free Application <ArrowRight className="w-4 h-4" />
+            </NeonButton>
+          </Link>
         </div>
       </section>
 
@@ -336,6 +357,7 @@ export default function LandingPage() {
                 <li><Link to="/dashboard" className="text-muted-foreground hover:text-neon transition-colors">Dashboard</Link></li>
                 <li><a href="#features" className="text-muted-foreground hover:text-neon transition-colors">Features</a></li>
                 <li><a href="#pricing" className="text-muted-foreground hover:text-neon transition-colors">Pricing</a></li>
+                <li><Link to="/onboarding" className="text-neon hover:text-neon/80 transition-colors">Partner Sign Up →</Link></li>
               </ul>
             </div>
             <div>

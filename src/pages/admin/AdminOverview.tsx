@@ -2,14 +2,15 @@ import PageWrapper from '@/components/layout/PageWrapper';
 import KpiCard from '@/components/ui/KpiCard';
 import NeonBadge from '@/components/ui/NeonBadge';
 import { mockClients } from '@/data/mockData';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const platformRecovery = Array.from({ length: 12 }, (_, i) => ({
   month: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][i],
-  value: Math.floor(Math.random() * 500000 + 300000),
+  value: Math.floor(Math.random() * 28000 + 12000),
 }));
 
-const revenueByClient = mockClients.map(c => ({ name: c.name.split(' ')[0], revenue: Math.round(c.recovered * 0.2) }));
+// Revenue = 50% of all recovered
+const revenueByClient = mockClients.map(c => ({ name: c.name.split(' ')[0], revenue: Math.round(c.recovered * 0.5) }));
 
 const tierDist = [
   { name: 'Tier 1', value: 340 },
@@ -29,7 +30,7 @@ export default function AdminOverview() {
         <KpiCard label="Total Clients" value={mockClients.length} delay={0} />
         <KpiCard label="Debt Under Mgmt" value={totalDebt} prefix="$" delay={100} />
         <KpiCard label="Platform Recovery" value={Math.round((totalRecovered / totalDebt) * 100)} suffix="%" delay={200} glowColor="green" />
-        <KpiCard label="Revenue MTD" value={Math.round(totalRecovered * 0.2)} prefix="$" delay={300} />
+        <KpiCard label="Revenue MTD (50%)" value={Math.round(totalRecovered * 0.5)} prefix="$" delay={300} glowColor="neon" subtext="50% of recovered" />
         <KpiCard label="Active AI Convos" value={847} delay={400} subtext="● Live" />
       </div>
 
@@ -56,6 +57,14 @@ export default function AdminOverview() {
               <Tooltip contentStyle={{ background: '#090e18', border: '1px solid rgba(0,200,255,0.3)', borderRadius: 8, fontSize: 12, fontFamily: 'Share Tech Mono' }} />
             </PieChart>
           </ResponsiveContainer>
+          <div className="flex justify-center gap-4 mt-2">
+            {tierDist.map((t, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full" style={{ background: COLORS[i] }} />
+                <span className="text-[10px] font-mono text-muted-foreground">{t.name}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -64,7 +73,7 @@ export default function AdminOverview() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
-              {['ID', 'Company', 'Industry', 'Accounts', 'Total Debt', 'Recovered', 'Plan', 'Status'].map(h => (
+              {['ID', 'Company', 'Industry', 'Accounts', 'Total Debt', 'Recovered', 'Kollection Rev (50%)', 'Status'].map(h => (
                 <th key={h} className="px-4 py-3 text-left text-[10px] font-mono tracking-widest text-muted-foreground uppercase">{h}</th>
               ))}
             </tr>
@@ -78,7 +87,7 @@ export default function AdminOverview() {
                 <td className="px-4 py-3 font-mono">{c.accounts}</td>
                 <td className="px-4 py-3 font-mono text-neon">${c.totalDebt.toLocaleString()}</td>
                 <td className="px-4 py-3 font-mono text-status-green">${c.recovered.toLocaleString()}</td>
-                <td className="px-4 py-3"><NeonBadge variant="neon">{c.plan}</NeonBadge></td>
+                <td className="px-4 py-3 font-mono text-neon">${Math.round(c.recovered * 0.5).toLocaleString()}</td>
                 <td className="px-4 py-3"><NeonBadge variant={c.status === 'Active' ? 'green' : 'yellow'}>{c.status}</NeonBadge></td>
               </tr>
             ))}
