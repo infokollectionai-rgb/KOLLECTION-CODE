@@ -8,6 +8,7 @@ import { AuthProvider } from "./context/AuthContext";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import SignupWizard from "./pages/SignupWizard";
+import OnboardingWizard from "./pages/OnboardingWizard";
 import ExecutiveDashboard from "./pages/dashboard/ExecutiveDashboard";
 import AccountManagement from "./pages/dashboard/AccountManagement";
 import ConversationsPanel from "./pages/dashboard/ConversationsPanel";
@@ -22,6 +23,7 @@ import AdminClients from "./pages/admin/AdminClients";
 import AdminRevenue from "./pages/admin/AdminRevenue";
 import AdminAIPerformance from "./pages/admin/AdminAIPerformance";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminApplications from "./pages/admin/AdminApplications";
 
 const queryClient = new QueryClient();
 
