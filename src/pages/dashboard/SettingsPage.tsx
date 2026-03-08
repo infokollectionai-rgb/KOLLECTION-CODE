@@ -1,29 +1,27 @@
 import PageWrapper from '@/components/layout/PageWrapper';
 import NeonButton from '@/components/ui/NeonButton';
+import { useAuth } from '@/context/AuthContext';
 import { useState } from 'react';
 import { Save } from 'lucide-react';
 
-const tabs = ['Company Profile', 'AI Behavior', 'Notifications', 'Integrations'];
+const tabs = ['Company Info', 'Notifications', 'Team Access', 'Billing', 'Security'];
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState('AI Behavior');
-  const [tone, setTone] = useState('professional');
-  const [maxAttempts, setMaxAttempts] = useState(10);
-  const [escalationTrigger, setEscalationTrigger] = useState('3_no_response');
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('Company Info');
 
   return (
     <PageWrapper title="Settings">
-      <div className="flex gap-6 h-[calc(100vh-160px)]">
-        {/* Tab list */}
-        <div className="w-[200px] space-y-1 flex-shrink-0">
+      <div className="flex gap-6 min-h-[calc(100vh-160px)]">
+        <div className="w-[180px] space-y-1 flex-shrink-0">
           {tabs.map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold transition-all ${
+              className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all ${
                 activeTab === tab
-                  ? 'bg-neon/10 text-neon border border-neon/20'
-                  : 'text-muted-foreground hover:bg-neon/5 hover:text-foreground border border-transparent'
+                  ? 'bg-primary/10 text-primary border border-primary/20'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent'
               }`}
             >
               {tab}
@@ -31,84 +29,101 @@ export default function SettingsPage() {
           ))}
         </div>
 
-        {/* Content */}
-        <div className="flex-1 bg-panel border border-border rounded-xl p-8">
-          {activeTab === 'AI Behavior' && (
-            <div className="space-y-8 max-w-lg">
+        <div className="flex-1 bg-card border border-border rounded-lg p-6">
+          {activeTab === 'Company Info' && (
+            <div className="space-y-5 max-w-lg">
               <div>
-                <h3 className="font-display text-sm font-bold tracking-widest mb-1">AI BEHAVIOR CONFIG</h3>
-                <p className="text-sm text-muted-foreground">Configure how the AI agents interact with debtors.</p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Company Profile</h3>
+                <p className="text-xs text-muted-foreground">Update your company information.</p>
               </div>
-
-              {/* Tone */}
               <div>
-                <label className="block text-[10px] font-mono tracking-widest text-muted-foreground mb-3 uppercase">Communication Tone</label>
-                <div className="flex gap-2">
-                  {['professional', 'firm', 'empathetic'].map(t => (
-                    <button
-                      key={t}
-                      onClick={() => setTone(t)}
-                      className={`px-4 py-2 rounded-md text-xs font-bold tracking-widest uppercase transition-all border ${
-                        tone === t
-                          ? 'bg-neon/20 text-neon border-neon/40 neon-glow-sm'
-                          : 'border-border text-muted-foreground hover:text-foreground hover:border-border'
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
+                <label className="text-[11px] text-muted-foreground mb-1 block">Company Name</label>
+                <input defaultValue={user?.company || ''} className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm text-foreground focus:border-primary/30 outline-none" />
               </div>
-
-              {/* Escalation */}
               <div>
-                <label className="block text-[10px] font-mono tracking-widest text-muted-foreground mb-3 uppercase">Escalation Trigger</label>
-                <select
-                  value={escalationTrigger}
-                  onChange={e => setEscalationTrigger(e.target.value)}
-                  className="bg-deep border border-border rounded-md px-4 py-2.5 text-sm text-foreground focus:border-neon/40 focus:shadow-[0_0_8px_rgba(0,200,255,0.6)] outline-none transition-all w-full"
-                >
-                  <option value="3_no_response">3 consecutive no responses</option>
-                  <option value="floor_reached">Floor amount reached</option>
-                  <option value="debtor_request">Debtor requests human</option>
-                  <option value="high_value">High-value account (&gt;$10K)</option>
-                </select>
+                <label className="text-[11px] text-muted-foreground mb-1 block">Business Address</label>
+                <input defaultValue="123 Main St, Montreal, QC" className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm text-foreground focus:border-primary/30 outline-none" />
               </div>
-
-              {/* Max Attempts */}
               <div>
-                <label className="block text-[10px] font-mono tracking-widest text-muted-foreground mb-3 uppercase">
-                  Max AI Attempts: <span className="text-neon">{maxAttempts}</span>
-                </label>
-                <input
-                  type="range"
-                  min={1}
-                  max={30}
-                  value={maxAttempts}
-                  onChange={e => setMaxAttempts(Number(e.target.value))}
-                  className="w-full accent-[#00c8ff]"
-                />
+                <label className="text-[11px] text-muted-foreground mb-1 block">Primary Contact</label>
+                <input defaultValue={user?.name || ''} className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm text-foreground focus:border-primary/30 outline-none" />
               </div>
-
-              {/* Blackout */}
-              <div>
-                <label className="block text-[10px] font-mono tracking-widest text-muted-foreground mb-3 uppercase">Blackout Hours (No Outreach)</label>
-                <div className="flex gap-3 items-center">
-                  <input type="time" defaultValue="21:00" className="bg-deep border border-border rounded-md px-3 py-2 text-sm text-foreground focus:border-neon/40 outline-none" />
-                  <span className="text-muted-foreground">to</span>
-                  <input type="time" defaultValue="08:00" className="bg-deep border border-border rounded-md px-3 py-2 text-sm text-foreground focus:border-neon/40 outline-none" />
-                </div>
-              </div>
-
-              <NeonButton variant="solid"><Save className="w-3 h-3" /> Save AI Config</NeonButton>
+              <NeonButton variant="solid" size="sm"><Save className="w-3 h-3" /> Save Changes</NeonButton>
             </div>
           )}
 
-          {activeTab !== 'AI Behavior' && (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <p className="font-mono text-sm text-muted-foreground tracking-widest">COMING SOON</p>
+          {activeTab === 'Notifications' && (
+            <div className="space-y-5 max-w-lg">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Notification Preferences</h3>
+                <p className="text-xs text-muted-foreground">Manage email alerts and updates.</p>
               </div>
+              {['Payout notifications', 'Account status updates', 'Weekly recovery summary', 'New account imported'].map(item => (
+                <label key={item} className="flex items-center justify-between">
+                  <span className="text-sm text-foreground">{item}</span>
+                  <input type="checkbox" defaultChecked className="accent-[hsl(205,100%,50%)]" />
+                </label>
+              ))}
+              <NeonButton variant="solid" size="sm"><Save className="w-3 h-3" /> Save Preferences</NeonButton>
+            </div>
+          )}
+
+          {activeTab === 'Team Access' && (
+            <div className="space-y-5 max-w-lg">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Team Members</h3>
+                <p className="text-xs text-muted-foreground">Manage who has access to your dashboard.</p>
+              </div>
+              <div className="bg-muted border border-border rounded-md p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-foreground">{user?.name}</p>
+                    <p className="text-xs text-muted-foreground">{user?.email}</p>
+                  </div>
+                  <span className="text-[10px] font-mono text-primary">Manager</span>
+                </div>
+              </div>
+              <NeonButton size="sm">+ Invite Team Member</NeonButton>
+            </div>
+          )}
+
+          {activeTab === 'Billing' && (
+            <div className="space-y-5 max-w-lg">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Payout Settings</h3>
+                <p className="text-xs text-muted-foreground">Manage your bank account and payout schedule.</p>
+              </div>
+              <div>
+                <label className="text-[11px] text-muted-foreground mb-1 block">Payout Schedule</label>
+                <select className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm text-foreground outline-none">
+                  <option>Bi-weekly</option>
+                  <option>Weekly</option>
+                  <option>Monthly</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[11px] text-muted-foreground mb-1 block">Payment Method</label>
+                <p className="text-sm text-foreground">Stripe Connect — Connected</p>
+              </div>
+              <NeonButton variant="solid" size="sm"><Save className="w-3 h-3" /> Save</NeonButton>
+            </div>
+          )}
+
+          {activeTab === 'Security' && (
+            <div className="space-y-5 max-w-lg">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Security Settings</h3>
+                <p className="text-xs text-muted-foreground">Manage your password and security options.</p>
+              </div>
+              <div>
+                <label className="text-[11px] text-muted-foreground mb-1 block">Current Password</label>
+                <input type="password" className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm text-foreground focus:border-primary/30 outline-none" />
+              </div>
+              <div>
+                <label className="text-[11px] text-muted-foreground mb-1 block">New Password</label>
+                <input type="password" className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm text-foreground focus:border-primary/30 outline-none" />
+              </div>
+              <NeonButton variant="solid" size="sm"><Save className="w-3 h-3" /> Update Password</NeonButton>
             </div>
           )}
         </div>
