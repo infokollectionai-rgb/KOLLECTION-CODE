@@ -114,7 +114,12 @@ export default function Sidebar() {
                 title={!showLabel ? item.label : undefined}
               >
                 <item.icon className="w-4 h-4 flex-shrink-0" />
-                {showLabel && <span>{item.label}</span>}
+                {showLabel && <span className="flex-1">{item.label}</span>}
+                {showLabel && 'badge' in item && (item as any).badge > 0 && (
+                  <span className="ml-auto bg-status-yellow/20 text-status-yellow border border-status-yellow/30 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded tracking-wider">
+                    {(item as any).badge}
+                  </span>
+                )}
               </Link>
             );
           })}
