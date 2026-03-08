@@ -1,37 +1,61 @@
 import PageWrapper from '@/components/layout/PageWrapper';
 import KpiCard from '@/components/ui/KpiCard';
 import StatusBadge from '@/components/ui/NeonBadge';
+import NeonButton from '@/components/ui/NeonButton';
 import { mockDebtors, mockRecoveryChart } from '@/data/mockData';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Zap, Download } from 'lucide-react';
 
-const totalAssigned = mockDebtors.reduce((s, d) => s + d.amount, 0);
+const totalAssigned = mockDebtors.reduce((s, d) => s + d.balance, 0);
 const totalRecovered = mockDebtors.reduce((s, d) => s + d.recovered, 0);
 const recoveryRate = Math.round((totalRecovered / totalAssigned) * 100);
 const clientPayout = Math.round(totalRecovered * 0.5);
 
 const statusData = [
   { name: 'Active', value: mockDebtors.filter(d => d.status === 'Active' || d.status === 'Negotiating').length },
-  { name: 'Resolved', value: mockDebtors.filter(d => d.status === 'Resolved').length },
-  { name: 'Escalated', value: mockDebtors.filter(d => d.status === 'Escalated').length },
+  { name: 'Paid', value: mockDebtors.filter(d => d.status === 'Paid').length },
+  { name: 'Escalated', value: mockDebtors.filter(d => d.status === 'Escalated' || d.status === 'Manual').length },
 ];
 const COLORS = ['#00aaff', '#22c98a', '#e05252'];
 
-const statusBadge = (s: string) => s === 'Resolved' ? 'green' as const : s === 'Escalated' ? 'red' as const : s === 'Negotiating' ? 'yellow' as const : 'blue' as const;
+const statusBadge = (s: string) => s === 'Paid' ? 'green' as const : s === 'Escalated' || s === 'Manual' ? 'red' as const : s === 'Negotiating' ? 'yellow' as const : 'blue' as const;
 
 export default function ExecutiveDashboard() {
   return (
     <PageWrapper title="Dashboard">
+      {/* Import CTA Banner */}
+      <div className="bg-primary/5 border border-primary/20 rounded-lg p-5 mb-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Zap className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-foreground mb-1">Start Recovering Instantly</h2>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Import your overdue accounts and our AI starts calling and texting them within minutes. Just drop your Excel file.
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-1.5">Accepted: .xlsx  .xls  .csv — <button className="text-primary hover:underline">Download template ↓</button></p>
+            </div>
+          </div>
+          <Link to="/dashboard/import" className="flex-shrink-0">
+            <NeonButton variant="solid" size="sm">Import Accounts <ArrowRight className="w-3 h-3" /></NeonButton>
+          </Link>
+        </div>
+      </div>
+
+      {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <KpiCard label="Accounts in System" value={mockDebtors.length.toString()} />
         <KpiCard label="Total Recovered" value={`$${totalRecovered.toLocaleString()}`} accent="green" />
         <KpiCard label="Recovery Rate" value={`${recoveryRate}%`} accent="neon" />
-        <KpiCard label="Your Next Payout" value={`$${clientPayout.toLocaleString()}`} subtext="Aug 15, 2025" />
+        <KpiCard label="Your Next Payout" value={`$${clientPayout.toLocaleString()}`} subtext="Sep 1, 2025" />
       </div>
 
+      {/* Charts */}
       <div className="grid lg:grid-cols-3 gap-6 mb-8">
-        <div className="lg:col-span-2 bg-panel border border-border rounded-lg p-5">
+        <div className="lg:col-span-2 bg-card border border-border rounded-lg p-5">
           <h3 className="text-xs text-muted-foreground mb-4">Recovery — Last 30 Days</h3>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={mockRecoveryChart}>
@@ -43,7 +67,7 @@ export default function ExecutiveDashboard() {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-panel border border-border rounded-lg p-5">
+        <div className="bg-card border border-border rounded-lg p-5">
           <h3 className="text-xs text-muted-foreground mb-4">Account Status</h3>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
@@ -65,10 +89,10 @@ export default function ExecutiveDashboard() {
       </div>
 
       {/* Recent accounts */}
-      <div className="bg-panel border border-border rounded-lg overflow-hidden">
+      <div className="bg-card border border-border rounded-lg overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3 border-b border-border">
           <h3 className="text-xs text-muted-foreground">Recent Account Activity</h3>
-          <Link to="/dashboard/accounts" className="text-xs text-neon hover:underline flex items-center gap-1">
+          <Link to="/dashboard/accounts" className="text-xs text-primary hover:underline flex items-center gap-1">
             View All <ArrowRight className="w-3 h-3" />
           </Link>
         </div>
@@ -82,9 +106,9 @@ export default function ExecutiveDashboard() {
           </thead>
           <tbody>
             {mockDebtors.slice(0, 5).map(d => (
-              <tr key={d.id} className="border-b border-border/50 hover:bg-raised/50 transition-colors">
+              <tr key={d.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                 <td className="px-5 py-3 text-foreground">{d.name}</td>
-                <td className="px-5 py-3 font-mono text-sm">${d.amount.toLocaleString()}</td>
+                <td className="px-5 py-3 font-mono text-sm">${d.balance.toLocaleString()}</td>
                 <td className="px-5 py-3 font-mono text-sm text-status-green">${d.recovered.toLocaleString()}</td>
                 <td className="px-5 py-3"><StatusBadge variant={statusBadge(d.status)}>{d.status}</StatusBadge></td>
                 <td className="px-5 py-3 text-xs text-muted-foreground">{d.lastAction}</td>

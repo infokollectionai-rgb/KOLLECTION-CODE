@@ -11,6 +11,7 @@ import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import OnboardingWizard from "./pages/OnboardingWizard";
 import ExecutiveDashboard from "./pages/dashboard/ExecutiveDashboard";
+import ImportAccountsPage from "./pages/dashboard/ImportAccountsPage";
 import AccountManagement from "./pages/dashboard/AccountManagement";
 import ConversationsPage from "./pages/dashboard/ConversationsPage";
 import ActivityLog from "./pages/dashboard/ActivityLog";
@@ -29,8 +30,8 @@ const queryClient = new QueryClient();
 
 function ProtectedRoute({ children, role }: { children: ReactNode; role?: 'admin' | 'user' }) {
   const { user } = useAuth();
-  if (!user) return <Navigate to="/login" />;
-  if (role && user.role !== role) return <Navigate to="/" />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (role && user.role !== role) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -44,6 +45,7 @@ function AppRoutes() {
 
       {/* User Dashboard */}
       <Route path="/dashboard" element={<ProtectedRoute role="user"><ExecutiveDashboard /></ProtectedRoute>} />
+      <Route path="/dashboard/import" element={<ProtectedRoute role="user"><ImportAccountsPage /></ProtectedRoute>} />
       <Route path="/dashboard/accounts" element={<ProtectedRoute role="user"><AccountManagement /></ProtectedRoute>} />
       <Route path="/dashboard/conversations" element={<ProtectedRoute role="user"><ConversationsPage /></ProtectedRoute>} />
       <Route path="/dashboard/activity" element={<ProtectedRoute role="user"><ActivityLog /></ProtectedRoute>} />
@@ -60,7 +62,7 @@ function AppRoutes() {
       <Route path="/admin/revenue" element={<ProtectedRoute role="admin"><AdminRevenue /></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute role="admin"><AdminSettings /></ProtectedRoute>} />
 
-      <Route path="*" element={<Navigate to="/" />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
