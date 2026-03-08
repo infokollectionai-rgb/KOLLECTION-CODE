@@ -72,12 +72,63 @@ export const mockConversations = [
 ];
 
 export const mockClients = [
-  { id: 'C001', name: 'QuickCash Loans', industry: 'Payday Loans', accounts: 142, totalDebt: 128400, recovered: 52200, status: 'Active', setupFeePaid: '2025-01-15', setupFee: 299 },
-  { id: 'C002', name: 'EasyPay Lending', industry: 'Personal Loans', accounts: 89, totalDebt: 98500, recovered: 41800, status: 'Active', setupFeePaid: '2025-02-03', setupFee: 299 },
-  { id: 'C003', name: 'CashNow Advance', industry: 'Cash Advance', accounts: 67, totalDebt: 54200, recovered: 18900, status: 'Active', setupFeePaid: '2025-03-11', setupFee: 299 },
-  { id: 'C004', name: 'FlexiLoan Pro', industry: 'BNPL', accounts: 34, totalDebt: 32800, recovered: 14600, status: 'Active', setupFeePaid: '2025-04-20', setupFee: 299 },
-  { id: 'C005', name: 'NorthShore Finance', industry: 'Personal Loans', accounts: 201, totalDebt: 184500, recovered: 68200, status: 'Onboarding', setupFeePaid: '2025-07-28', setupFee: 299 },
+  {
+    id: 'C001', name: 'QuickCash Loans Inc.', industry: 'Payday Loans',
+    setupFee: 5000, recoveryPct: 50, operationsPct: 8,
+    status: 'Active', accounts: 142,
+    infrastructure: { twilio: true, stripe: true, vapi: true },
+    twilioPhone: '+18005550142', vapiAgent: 'Alex',
+    monthlyRecovered: 8420, totalDebt: 128400, recovered: 52200,
+  },
+  {
+    id: 'C002', name: 'Apex Lending Group', industry: 'Personal Loans',
+    setupFee: 3000, recoveryPct: 40, operationsPct: 6,
+    status: 'Active', accounts: 89,
+    infrastructure: { twilio: true, stripe: true, vapi: true },
+    twilioPhone: '+18005550189', vapiAgent: 'Sarah',
+    monthlyRecovered: 12100, totalDebt: 98500, recovered: 41800,
+  },
+  {
+    id: 'C003', name: 'ClearPath Finance', industry: 'Auto Loans',
+    setupFee: 5000, recoveryPct: 50, operationsPct: 8,
+    status: 'Onboarding', accounts: 0,
+    infrastructure: { twilio: true, stripe: false, vapi: false },
+    twilioPhone: '+18005550134', vapiAgent: null,
+    monthlyRecovered: 0, totalDebt: 54200, recovered: 18900,
+  },
+  {
+    id: 'C004', name: 'NorthShore Credit', industry: 'BNPL',
+    setupFee: 4000, recoveryPct: 45, operationsPct: 7,
+    status: 'Active', accounts: 201,
+    infrastructure: { twilio: true, stripe: true, vapi: true },
+    twilioPhone: '+18005550201', vapiAgent: 'Alex',
+    monthlyRecovered: 14200, totalDebt: 184500, recovered: 68200,
+  },
 ];
+
+export const mockFeeHistory = [
+  { date: '2025-07-01', company: 'Apex Lending Group', field: 'recoveryPct', oldValue: 50, newValue: 40, reason: 'New client promotional rate', changedBy: 'admin@kollection.ca' },
+  { date: '2025-05-15', company: 'Apex Lending Group', field: 'setupFee', oldValue: 5000, newValue: 3000, reason: 'Referral partner discount', changedBy: 'admin@kollection.ca' },
+  { date: '2025-06-01', company: 'NorthShore Credit', field: 'operationsPct', oldValue: 8, newValue: 7, reason: 'High volume client discount', changedBy: 'admin@kollection.ca' },
+];
+
+export const mockOperationsCosts = {
+  period: 'Jul 2025',
+  breakdown: [
+    { type: 'SMS Sent', count: 847, unitCost: 0.0079, total: 6.69 },
+    { type: 'Voice Calls', count: 312, unitCost: 0.052, total: 16.22 },
+    { type: 'Voicemails', count: 189, unitCost: 0.013, total: 2.46 },
+    { type: 'Emails Sent', count: 1024, unitCost: 0.001, total: 1.02 },
+  ],
+  actualCost: 26.39,
+  opsFeeCharged: 673.60,
+  surplus: 647.21,
+  grossRecovered: 8420,
+  opsFeePct: 8,
+  afterOps: 7746.40,
+  kollectionShare: 3873.20,
+  clientShare: 3873.20,
+};
 
 export const mockActivityLog = [
   { id: 1, timestamp: '2025-08-05 10:42', debtor: 'Marcus Allen', type: 'SMS Sent', channel: 'SMS', outcome: 'Delivered', aiStage: 'SOFT_TOUCH' },
@@ -98,35 +149,32 @@ export const mockRecoveryChart = Array.from({ length: 30 }, (_, i) => ({
 }));
 
 export const mockMonthlyData = [
-  { month: 'Mar', gross: 6200, kollection: 3100, client: 3100 },
-  { month: 'Apr', gross: 7800, kollection: 3900, client: 3900 },
-  { month: 'May', gross: 5400, kollection: 2700, client: 2700 },
-  { month: 'Jun', gross: 9100, kollection: 4550, client: 4550 },
-  { month: 'Jul', gross: 8420, kollection: 4210, client: 4210 },
-  { month: 'Aug', gross: 11200, kollection: 5600, client: 5600 },
+  { month: 'Mar', gross: 6200, opsFee: 496, kollection: 2852, client: 2852 },
+  { month: 'Apr', gross: 7800, opsFee: 624, kollection: 3588, client: 3588 },
+  { month: 'May', gross: 5400, opsFee: 432, kollection: 2484, client: 2484 },
+  { month: 'Jun', gross: 9100, opsFee: 728, kollection: 4186, client: 4186 },
+  { month: 'Jul', gross: 8420, opsFee: 673.60, kollection: 3873.20, client: 3873.20 },
+  { month: 'Aug', gross: 11200, opsFee: 896, kollection: 5152, client: 5152 },
 ];
 
 export const mockBillingData = {
-  setupFeePaid: { amount: 299, date: 'Jan 15, 2025' },
-  currentMonth: { recovered: 8420, kollection: 4210, client: 4210, payoutDate: 'Sep 1, 2025', status: 'SCHEDULED' },
+  setupFeePaid: { amount: 5000, date: 'Jan 15, 2025' },
+  currentMonth: {
+    recovered: 8420,
+    opsFee: 673.60,
+    opsFeePct: 8,
+    afterOps: 7746.40,
+    kollection: 3873.20,
+    client: 3873.20,
+    payoutDate: 'Sep 1, 2025',
+    status: 'SCHEDULED',
+  },
   history: [
-    { month: 'Aug 2025', recovered: 8420, kollection: 4210, client: 4210, status: 'Scheduled', transferId: null },
-    { month: 'Jul 2025', recovered: 7800, kollection: 3900, client: 3900, status: 'Paid', transferId: 'tr_3Pxxx1' },
-    { month: 'Jun 2025', recovered: 5400, kollection: 2700, client: 2700, status: 'Paid', transferId: 'tr_3Pxxx2' },
-    { month: 'May 2025', recovered: 9100, kollection: 4550, client: 4550, status: 'Paid', transferId: 'tr_3Pxxx3' },
-    { month: 'Apr 2025', recovered: 6200, kollection: 3100, client: 3100, status: 'Paid', transferId: 'tr_3Pxxx4' },
-  ],
-};
-
-export const mockBilling = {
-  setupFeePaid: '$299 — Jan 15, 2025',
-  currentMonth: { recovered: 8420, kollectionFee: 4210, yourPayout: 4210, payoutDate: 'Aug 31, 2025', status: 'Pending' },
-  history: [
-    { month: 'Mar 2025', recovered: 6200, fee: 3100, payout: 3100, status: 'Paid' },
-    { month: 'Apr 2025', recovered: 7800, fee: 3900, payout: 3900, status: 'Paid' },
-    { month: 'May 2025', recovered: 5400, fee: 2700, payout: 2700, status: 'Paid' },
-    { month: 'Jun 2025', recovered: 9100, fee: 4550, payout: 4550, status: 'Paid' },
-    { month: 'Jul 2025', recovered: 8420, fee: 4210, payout: 4210, status: 'Pending' },
+    { month: 'Aug 2025', recovered: 8420, opsFee: 673.60, kollection: 3873.20, client: 3873.20, status: 'Scheduled', transferId: null },
+    { month: 'Jul 2025', recovered: 7800, opsFee: 624, kollection: 3588, client: 3588, status: 'Paid', transferId: 'tr_3Pxxx1' },
+    { month: 'Jun 2025', recovered: 5400, opsFee: 432, kollection: 2484, client: 2484, status: 'Paid', transferId: 'tr_3Pxxx2' },
+    { month: 'May 2025', recovered: 9100, opsFee: 728, kollection: 4186, client: 4186, status: 'Paid', transferId: 'tr_3Pxxx3' },
+    { month: 'Apr 2025', recovered: 6200, opsFee: 496, kollection: 2852, client: 2852, status: 'Paid', transferId: 'tr_3Pxxx4' },
   ],
 };
 

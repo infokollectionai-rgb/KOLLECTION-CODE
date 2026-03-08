@@ -2,15 +2,15 @@ import PageWrapper from '@/components/layout/PageWrapper';
 import KpiCard from '@/components/ui/KpiCard';
 import StatusBadge from '@/components/ui/NeonBadge';
 import NeonButton from '@/components/ui/NeonButton';
-import { mockDebtors, mockRecoveryChart } from '@/data/mockData';
+import { mockDebtors, mockRecoveryChart, mockOperationsCosts } from '@/data/mockData';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Zap, Download } from 'lucide-react';
+import { ArrowRight, Zap } from 'lucide-react';
 
 const totalAssigned = mockDebtors.reduce((s, d) => s + d.balance, 0);
 const totalRecovered = mockDebtors.reduce((s, d) => s + d.recovered, 0);
 const recoveryRate = Math.round((totalRecovered / totalAssigned) * 100);
-const clientPayout = Math.round(totalRecovered * 0.5);
+const clientPayout = mockOperationsCosts.clientShare;
 
 const statusData = [
   { name: 'Active', value: mockDebtors.filter(d => d.status === 'Active' || d.status === 'Negotiating').length },
@@ -46,11 +46,37 @@ export default function ExecutiveDashboard() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <KpiCard label="Accounts in System" value={mockDebtors.length.toString()} />
         <KpiCard label="Total Recovered" value={`$${totalRecovered.toLocaleString()}`} accent="green" />
         <KpiCard label="Recovery Rate" value={`${recoveryRate}%`} accent="neon" />
         <KpiCard label="Your Next Payout" value={`$${clientPayout.toLocaleString()}`} subtext="Sep 1, 2025" />
+      </div>
+
+      {/* Operations summary (collapsed) */}
+      <div className="bg-card border border-border rounded-lg p-4 mb-6">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-mono text-muted-foreground tracking-wider">OPERATIONS COST OVERVIEW — Jul 2025</span>
+          <Link to="/dashboard/billing" className="text-[10px] text-primary hover:underline">View Details</Link>
+        </div>
+        <div className="grid grid-cols-4 gap-4 mt-3">
+          <div>
+            <p className="text-[10px] text-muted-foreground">Gross Recovered</p>
+            <p className="font-mono text-sm text-foreground">${mockOperationsCosts.grossRecovered.toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-muted-foreground">Ops Fee ({mockOperationsCosts.opsFeePct}%)</p>
+            <p className="font-mono text-sm text-foreground">${mockOperationsCosts.opsFeeCharged.toFixed(2)}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-muted-foreground">After Ops</p>
+            <p className="font-mono text-sm text-foreground">${mockOperationsCosts.afterOps.toFixed(2)}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-muted-foreground">Your Payout</p>
+            <p className="font-mono text-sm text-status-green">${mockOperationsCosts.clientShare.toFixed(2)}</p>
+          </div>
+        </div>
       </div>
 
       {/* Charts */}

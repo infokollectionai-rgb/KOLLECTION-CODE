@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Shield, ArrowRight, CheckCircle, BarChart3, MessageSquare, Clock, DollarSign, Users, Zap, ChevronDown, Star } from 'lucide-react';
+import { Shield, ArrowRight, CheckCircle, BarChart3, MessageSquare, Clock, DollarSign, Users, Zap, ChevronDown } from 'lucide-react';
 import NeonButton from '@/components/ui/NeonButton';
 import { useState } from 'react';
 
@@ -14,30 +14,24 @@ const features = [
   { icon: MessageSquare, title: 'Multi-Channel AI Outreach', desc: 'SMS, email, and phone calls — all automated. Our AI adapts tone and timing to maximize response rates.' },
   { icon: BarChart3, title: 'Real-Time Recovery Dashboard', desc: 'Track every account, payment, and conversation as it happens. Full transparency into your portfolio.' },
   { icon: Clock, title: 'Instant Account Onboarding', desc: 'Upload a CSV or connect via API. Your overdue accounts enter the recovery pipeline within minutes.' },
-  { icon: DollarSign, title: 'Automated Payment Collection', desc: 'Installment plans, settlements, and full payments processed automatically. Funds flow to your account on schedule.' },
+  { icon: DollarSign, title: 'Automated Payment Collection', desc: 'Installment plans, settlements, and full payments processed automatically via your own Stripe account.' },
   { icon: Users, title: 'Human Escalation When Needed', desc: 'Complex cases get flagged for manual review. Request takeover on any account with one click.' },
-  { icon: Zap, title: 'Compliance Built In', desc: 'All outreach follows federal and provincial collection regulations. Configurable contact windows and blackout periods.' },
+  { icon: Zap, title: 'Dedicated Infrastructure', desc: 'Each client gets their own Twilio number, Stripe payment processing, and VAPI AI voice agent.' },
 ];
 
 const steps = [
   { num: '01', title: 'Submit your overdue accounts', desc: 'Upload a list of overdue accounts. We import them within 24 hours.' },
   { num: '02', title: 'AI handles outreach', desc: 'SMS, email, and phone calls go out automatically. You monitor progress in real time.' },
-  { num: '03', title: 'Receive your 50%', desc: 'Every dollar collected is split 50/50. Transferred on your chosen schedule.' },
-];
-
-const testimonials = [
-  { quote: 'We recovered $42,000 in the first month alone. The AI handles everything — we just watch the dashboard.', name: 'Sarah J.', company: 'QuickCash Loans', role: 'Operations Director' },
-  { quote: "No more hiring collection agents. Kollection's system is faster, cheaper, and more compliant than anything we've used.", name: 'Mike C.', company: 'EasyPay Lending', role: 'CEO' },
-  { quote: 'The 50/50 model means they\'re incentivized to actually collect. Our recovery rate went from 12% to 36%.', name: 'Amy W.', company: 'TrustBridge Financial', role: 'VP Collections' },
+  { num: '03', title: 'Receive your 50%', desc: 'Every dollar collected is split 50/50. Your share is transferred on the 1st of every month.' },
 ];
 
 const faqs = [
-  { q: 'How does pricing work?', a: 'Simple — a one-time $299 setup fee, then 50% of everything we recover. If we collect nothing, you pay nothing beyond the setup.' },
+  { q: 'How does pricing work?', a: 'A one-time $5,000 setup fee to provision your dedicated infrastructure. Then 50% of everything we recover, with an 8% operations fee deducted first to cover SMS, calls, and emails. If we collect $0, you owe $0 beyond setup.' },
   { q: 'What types of loans do you support?', a: 'Payday loans, personal installment loans, auto title loans, cash advances, lines of credit, and more. If someone owes you money, we can recover it.' },
   { q: 'How quickly will you contact my debtors?', a: 'Most accounts receive their first outreach within 48 hours of being uploaded to the platform.' },
   { q: 'Can I take manual control of an account?', a: 'Yes. You can request manual takeover on any account at any time through the dashboard. AI recovery pauses and our team coordinates with you.' },
   { q: 'Is the AI outreach compliant with collection laws?', a: 'Absolutely. All communications follow federal and provincial regulations including contact hour restrictions, required disclosures, and opt-out handling.' },
-  { q: 'How do I receive my payouts?', a: 'Via Stripe Connect or direct bank transfer (ACH/EFT). You choose weekly, bi-weekly, or monthly payouts during onboarding.' },
+  { q: 'How do I receive my payouts?', a: 'Via your connected Stripe account. Payouts are sent automatically on the 1st of every month. Monthly only — no other schedule.' },
 ];
 
 export default function LandingPage() {
@@ -75,8 +69,8 @@ export default function LandingPage() {
             We Recover Your<br />Outstanding Loans.
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-            AI-powered outreach contacts your overdue accounts by SMS, email, and phone.
-            You track the results. We split what we collect.
+            AI contacts your overdue accounts by SMS, email, and phone.
+            You track results in real time. We split what we collect.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center mb-16">
             <Link to="/signup">
@@ -148,11 +142,11 @@ export default function LandingPage() {
       <section id="pricing" className="py-24 border-t border-border">
         <div className="max-w-3xl mx-auto px-6">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-foreground mb-3">How We Charge</h2>
+            <h2 className="text-3xl font-bold text-foreground mb-3">One Simple Model</h2>
             <p className="text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed">
               One-time setup fee to activate your account.<br />
-              Then 50% of every dollar we recover — that's it.<br />
-              If we collect $0, you owe $0.
+              50% of every dollar we recover — nothing else.<br />
+              No monthly fees. No minimums. No contracts.
             </p>
           </div>
           <div className="text-center">
@@ -161,26 +155,6 @@ export default function LandingPage() {
                 Apply for an Account <ArrowRight className="w-4 h-4" />
               </NeonButton>
             </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section className="py-24 border-t border-border">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-foreground mb-3">What Our Clients Say</h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-5">
-            {testimonials.map((t, i) => (
-              <div key={i} className="bg-card border border-border rounded-xl p-6">
-                <p className="text-sm text-foreground leading-relaxed mb-5">"{t.quote}"</p>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{t.name}</p>
-                  <p className="text-xs text-muted-foreground">{t.role}, {t.company}</p>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </section>
@@ -217,7 +191,7 @@ export default function LandingPage() {
         <div className="max-w-2xl mx-auto px-6 text-center">
           <h2 className="text-3xl font-bold text-foreground mb-4">Ready to Stop Writing Off Bad Debt?</h2>
           <p className="text-muted-foreground mb-8 leading-relaxed">
-            Sign up in 4 steps. No contracts. No upfront cost beyond setup.<br />
+            Sign up in 5 steps. No contracts. No upfront cost beyond setup.<br />
             We recover your money — you keep 50% of every dollar we bring back.
           </p>
           <Link to="/signup">

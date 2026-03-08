@@ -3,9 +3,11 @@ import KpiCard from '@/components/ui/KpiCard';
 import StatusBadge from '@/components/ui/NeonBadge';
 import { mockClients } from '@/data/mockData';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Link } from 'react-router-dom';
+import { CheckCircle, XCircle } from 'lucide-react';
 
 const platformRecovery = Array.from({ length: 12 }, (_, i) => ({
-  month: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][i],
+  month: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][i],
   value: Math.floor(Math.random() * 28000 + 12000),
 }));
 
@@ -18,6 +20,7 @@ const COLORS = ['#00aaff', '#22c98a', '#e6a817'];
 
 const totalDebt = mockClients.reduce((s, c) => s + c.totalDebt, 0);
 const totalRecovered = mockClients.reduce((s, c) => s + c.recovered, 0);
+const totalMonthly = mockClients.reduce((s, c) => s + c.monthlyRecovered, 0);
 
 export default function AdminOverview() {
   return (
@@ -26,12 +29,12 @@ export default function AdminOverview() {
         <KpiCard label="Total Clients" value={mockClients.length.toString()} />
         <KpiCard label="Debt Under Mgmt" value={`$${totalDebt.toLocaleString()}`} />
         <KpiCard label="Platform Recovery" value={`${Math.round((totalRecovered / totalDebt) * 100)}%`} accent="green" />
-        <KpiCard label="Revenue MTD (50%)" value={`$${Math.round(totalRecovered * 0.5).toLocaleString()}`} accent="neon" />
+        <KpiCard label="Monthly Collected" value={`$${totalMonthly.toLocaleString()}`} accent="neon" />
         <KpiCard label="Active AI Convos" value="847" subtext="Live" />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6 mb-8">
-        <div className="lg:col-span-2 bg-panel border border-border rounded-lg p-5">
+        <div className="lg:col-span-2 bg-card border border-border rounded-lg p-5">
           <h3 className="text-xs text-muted-foreground mb-4">Platform Recovery — 12 Month</h3>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={platformRecovery}>
@@ -42,7 +45,7 @@ export default function AdminOverview() {
             </LineChart>
           </ResponsiveContainer>
         </div>
-        <div className="bg-panel border border-border rounded-lg p-5">
+        <div className="bg-card border border-border rounded-lg p-5">
           <h3 className="text-xs text-muted-foreground mb-4">Tier Distribution</h3>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
@@ -55,37 +58,38 @@ export default function AdminOverview() {
         </div>
       </div>
 
-      <div className="bg-panel border border-border rounded-lg overflow-hidden mb-8">
+      <div className="bg-card border border-border rounded-lg overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
-              {['ID', 'Company', 'Industry', 'Accounts', 'Total Debt', 'Recovered', 'Kollection Rev (50%)', 'Status'].map(h => (
-                <th key={h} className="px-5 py-2.5 text-left text-[11px] text-muted-foreground font-medium">{h}</th>
+              {['Company', 'Industry', 'Accounts', 'Setup Fee', 'Recovery %', 'Ops %', 'Infrastructure', 'Status'].map(h => (
+                <th key={h} className="px-4 py-2.5 text-left text-[11px] text-muted-foreground font-medium">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {mockClients.map(c => (
-              <tr key={c.id} className="border-b border-border/50 hover:bg-raised/50 transition-colors">
-                <td className="px-5 py-3 font-mono text-xs text-muted-foreground">{c.id}</td>
-                <td className="px-5 py-3 text-foreground font-medium">{c.name}</td>
-                <td className="px-5 py-3 text-muted-foreground">{c.industry}</td>
-                <td className="px-5 py-3 font-mono">{c.accounts}</td>
-                <td className="px-5 py-3 font-mono">${c.totalDebt.toLocaleString()}</td>
-                <td className="px-5 py-3 font-mono text-status-green">${c.recovered.toLocaleString()}</td>
-                <td className="px-5 py-3 font-mono">${Math.round(c.recovered * 0.5).toLocaleString()}</td>
-                <td className="px-5 py-3"><StatusBadge variant={c.status === 'Active' ? 'green' : 'yellow'}>{c.status}</StatusBadge></td>
+              <tr key={c.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                <td className="px-4 py-3">
+                  <Link to={`/admin/clients/${c.id}`} className="text-foreground font-medium hover:text-primary transition-colors">{c.name}</Link>
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">{c.industry}</td>
+                <td className="px-4 py-3 font-mono">{c.accounts}</td>
+                <td className="px-4 py-3 font-mono">${c.setupFee.toLocaleString()}</td>
+                <td className="px-4 py-3 font-mono">{c.recoveryPct}%</td>
+                <td className="px-4 py-3 font-mono">{c.operationsPct}%</td>
+                <td className="px-4 py-3">
+                  <div className="flex gap-1">
+                    {c.infrastructure.twilio ? <CheckCircle className="w-3 h-3 text-status-green" /> : <XCircle className="w-3 h-3 text-destructive" />}
+                    {c.infrastructure.stripe ? <CheckCircle className="w-3 h-3 text-status-green" /> : <XCircle className="w-3 h-3 text-destructive" />}
+                    {c.infrastructure.vapi ? <CheckCircle className="w-3 h-3 text-status-green" /> : <XCircle className="w-3 h-3 text-destructive" />}
+                  </div>
+                </td>
+                <td className="px-4 py-3"><StatusBadge variant={c.status === 'Active' ? 'green' : 'yellow'}>{c.status}</StatusBadge></td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Uptime" value="99.9%" accent="green" />
-        <KpiCard label="Avg Response" value="1.2s" />
-        <KpiCard label="Messages Today" value="2,847" />
-        <KpiCard label="Calls Active" value="12" subtext="Live" />
       </div>
     </PageWrapper>
   );

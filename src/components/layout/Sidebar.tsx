@@ -3,7 +3,7 @@ import { useLocation, Link, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, MessageSquare, CreditCard, FileText, Receipt,
   Settings, Building2, DollarSign, Shield, ChevronLeft, ChevronRight,
-  Menu, X, ClipboardList, LogOut, User, Upload, Plus
+  Menu, X, LogOut, User, Plus
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -22,8 +22,7 @@ const adminNav = [
   { path: '/admin', label: 'Overview', icon: LayoutDashboard },
   { path: '/admin/clients', label: 'All Clients', icon: Building2 },
   { path: '/admin/conversations', label: 'Conversations', icon: MessageSquare, badge: 12 },
-  { path: '/admin/applications', label: 'Applications', icon: ClipboardList, badge: 2 },
-  { path: '/admin/revenue', label: 'Billing & Payouts', icon: DollarSign },
+  { path: '/admin/billing', label: 'Billing & Revenue', icon: DollarSign },
   { path: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
