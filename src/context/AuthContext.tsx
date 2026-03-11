@@ -130,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     setError(null);
+    setIsDemoMode(false);
     try {
       await authSignOut();
     } catch {
@@ -138,6 +139,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setUser(null);
     setProfile(null);
+  };
+
+  const enterDemoMode = (role: 'admin' | 'client' = 'client') => {
+    setIsDemoMode(true);
+    setProfile({
+      id: 'demo',
+      auth_user_id: 'demo',
+      company_name: 'Demo Company',
+      contact_name: 'Demo User',
+      role,
+      onboarding_complete: true,
+    });
+    setLoading(false);
   };
 
   const resetPasswordFn = async (email: string) => {
