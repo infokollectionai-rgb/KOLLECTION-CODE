@@ -2,7 +2,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Bell } from 'lucide-react';
 
 export default function TopHeader() {
-  const { user } = useAuth();
+  const { profile } = useAuth();
 
   return (
     <header className="h-14 bg-card border-b border-border flex items-center justify-between px-4 md:px-6 fixed top-0 left-[60px] md:left-[220px] right-0 z-40">
