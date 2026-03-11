@@ -1,9 +1,6 @@
 import * as XLSX from 'xlsx';
 import { apiClient } from '@/lib/apiClient';
 
-const IS_DEMO = !import.meta.env.VITE_APP_ENV || import.meta.env.VITE_APP_ENV === 'demo';
-const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
-
 export const REQUIRED_COLUMNS = [
   'First Name', 'Last Name', 'Phone Number', 'Full Address', 'City', 'Province / State', 'Amount Owed', 'Days Overdue',
 ];
@@ -108,38 +105,10 @@ export async function parseImportFile(file: File): Promise<ParseResult> {
 
 export async function processImport({ rows, companyId }: { rows: ParsedRow[]; companyId?: string }) {
   const validRows = rows.filter(r => r.valid);
-
-  if (IS_DEMO) {
-    await wait(1000);
-    return {
-      importId: `IMP-${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
-      accountsCreated: validRows.length,
-      aiTriggered: true,
-      smsQueued: Math.floor(validRows.length * 0.85),
-      callsScheduled: Math.floor(validRows.length * 0.4),
-      estimatedFirstOutreach: '8 minutes',
-    };
-  }
-
-  const formData = new FormData();
-  const blob = new Blob([JSON.stringify({ accounts: validRows, companyId })], { type: 'application/json' });
-  formData.append('data', blob);
-  return apiClient.upload('/import/process', formData);
+  return apiClient.post('/import/process', { accounts: validRows, companyId });
 }
 
 export async function getImportProgress({ importId }: { importId: string }) {
-  if (IS_DEMO) {
-    await wait(500);
-    const progress = Math.min(100, Math.floor(Math.random() * 15 + 60));
-    return {
-      importId,
-      progress,
-      accountsScored: Math.floor(progress * 4.5),
-      smsQueued: Math.floor(progress * 2.1),
-      callsScheduled: Math.floor(progress * 0.9),
-      status: progress === 100 ? 'COMPLETE' : 'IN_PROGRESS',
-    };
-  }
   return apiClient.get(`/import/progress/${importId}`);
 }
 

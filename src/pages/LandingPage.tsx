@@ -216,25 +216,6 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      {/* Demo Access Card */}
-      <div className="fixed bottom-5 right-5 z-50 bg-card border border-border rounded-lg p-4 w-[280px] shadow-lg">
-        <p className="text-[10px] font-mono text-muted-foreground tracking-wider mb-3">DEMO ACCESS</p>
-        <div className="space-y-2.5 text-xs">
-          <div>
-            <p className="text-muted-foreground mb-0.5">Admin</p>
-            <p className="font-mono text-foreground">admin@kollection.ca</p>
-            <p className="font-mono text-muted-foreground">Admin2025!</p>
-          </div>
-          <div className="border-t border-border pt-2">
-            <p className="text-muted-foreground mb-0.5">Client</p>
-            <p className="font-mono text-foreground">demo@quickcashloans.ca</p>
-            <p className="font-mono text-muted-foreground">Demo2025!</p>
-          </div>
-        </div>
-        <Link to="/login" className="block mt-3">
-          <NeonButton variant="solid" size="sm" className="w-full text-[11px]">Sign In to Demo</NeonButton>
-        </Link>
-      </div>
     </div>
   );
 }
