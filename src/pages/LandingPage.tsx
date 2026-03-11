@@ -54,7 +54,7 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-3">
             <Link to="/login"><NeonButton size="sm">Sign In</NeonButton></Link>
-            <Link to="/signup"><NeonButton variant="solid" size="sm">Apply for Account</NeonButton></Link>
+            <Link to="/register"><NeonButton variant="solid" size="sm">Apply for Account</NeonButton></Link>
           </div>
         </div>
       </nav>
