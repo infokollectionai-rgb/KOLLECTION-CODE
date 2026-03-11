@@ -148,7 +148,7 @@ export default function LandingPage() {
             </p>
           </div>
           <div className="text-center">
-            <Link to="/signup">
+            <Link to="/register">
               <NeonButton variant="solid" className="text-base px-8 py-3">
                 Apply for an Account <ArrowRight className="w-4 h-4" />
               </NeonButton>
