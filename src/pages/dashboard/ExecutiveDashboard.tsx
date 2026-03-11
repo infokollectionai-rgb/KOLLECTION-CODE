@@ -3,6 +3,7 @@ import KpiCard from '@/components/ui/KpiCard';
 import StatusBadge from '@/components/ui/NeonBadge';
 import NeonButton from '@/components/ui/NeonButton';
 import PaymentActivityFeed from '@/components/dashboard/PaymentActivityFeed';
+import ActiveDebtorsTable from '@/components/dashboard/ActiveDebtorsTable';
 import { mockDebtors, mockRecoveryChart, mockOperationsCosts } from '@/data/mockData';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Link } from 'react-router-dom';
@@ -148,6 +149,11 @@ export default function ExecutiveDashboard() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Active Debtors Table */}
+      <div className="mt-6">
+        <ActiveDebtorsTable />
       </div>
     </PageWrapper>
   );
