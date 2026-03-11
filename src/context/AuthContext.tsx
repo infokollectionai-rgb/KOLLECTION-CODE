@@ -23,9 +23,11 @@ interface AuthContextType {
   register: (email: string, password: string, companyName: string, contactName: string) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  enterDemoMode: (role?: 'admin' | 'client') => void;
   isAuthenticated: boolean;
   isAdmin: boolean;
   isOnboarded: boolean;
+  isDemoMode: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
