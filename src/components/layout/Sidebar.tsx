@@ -28,7 +28,7 @@ const adminNav = [
 ];
 
 export default function Sidebar() {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, profile, isAdmin, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
