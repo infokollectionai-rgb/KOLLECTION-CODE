@@ -71,7 +71,7 @@ export default function LandingPage() {
             You track results in real time. We split what we collect.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center mb-16">
-            <Link to="/signup">
+            <Link to="/register">
               <NeonButton variant="solid" className="text-base px-8 py-3">
                 Apply for an Account <ArrowRight className="w-4 h-4" />
               </NeonButton>
