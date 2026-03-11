@@ -23,9 +23,11 @@ interface AuthContextType {
   register: (email: string, password: string, companyName: string, contactName: string) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  enterDemoMode: (role?: 'admin' | 'client') => void;
   isAuthenticated: boolean;
   isAdmin: boolean;
   isOnboarded: boolean;
+  isDemoMode: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -51,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
   const loadProfile = useCallback(async (u: User | null) => {
     if (!u) {
@@ -127,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     setError(null);
+    setIsDemoMode(false);
     try {
       await authSignOut();
     } catch {
@@ -135,6 +139,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setUser(null);
     setProfile(null);
+  };
+
+  const enterDemoMode = (role: 'admin' | 'client' = 'client') => {
+    setIsDemoMode(true);
+    setProfile({
+      id: 'demo',
+      auth_user_id: 'demo',
+      company_name: 'Demo Company',
+      contact_name: 'Demo User',
+      role,
+      onboarding_complete: true,
+    });
+    setLoading(false);
   };
 
   const resetPasswordFn = async (email: string) => {
@@ -146,6 +163,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(e?.message || 'Password reset failed.');
     }
   };
+
+  const isAuthenticated = isDemoMode || session !== null;
 
   return (
     <AuthContext.Provider
@@ -159,9 +178,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         resetPassword: resetPasswordFn,
-        isAuthenticated: session !== null,
+        enterDemoMode,
+        isAuthenticated,
         isAdmin: profile?.role === 'admin',
         isOnboarded: profile?.onboarding_complete === true,
+        isDemoMode,
       }}
     >
       {children}
