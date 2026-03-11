@@ -3,6 +3,7 @@ import { useAuth } from '@/context/AuthContext';
 import { apiClient } from '@/lib/apiClient';
 import { Search, Phone, MessageSquare, Mail, Mic, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import NeonButton from '@/components/ui/NeonButton';
+import ConversationPanel from '@/components/dashboard/ConversationPanel';
 
 /* ── types ── */
 
@@ -116,6 +117,7 @@ export default function ActiveDebtorsTable() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [viewingDebtor, setViewingDebtor] = useState<Debtor | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; action: () => Promise<void> } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -313,7 +315,7 @@ export default function ActiveDebtorsTable() {
                     <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">{formatDate(d.next_scheduled)}</td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-1">
-                        <NeonButton size="sm" variant="ghost" onClick={() => {}}>View</NeonButton>
+                        <NeonButton size="sm" variant="ghost" onClick={() => setViewingDebtor(d)}>View</NeonButton>
                         <NeonButton size="sm" variant="ghost" onClick={() => handlePauseResume(d)}>{isPaused ? 'Resume' : 'Pause'}</NeonButton>
                         <NeonButton size="sm" variant="ghost" onClick={() => handleRemove(d)} className="text-destructive hover:text-destructive">Remove</NeonButton>
                       </div>
@@ -349,6 +351,10 @@ export default function ActiveDebtorsTable() {
         onCancel={() => setConfirmDialog(null)}
         loading={actionLoading}
       />
+
+      {viewingDebtor && (
+        <ConversationPanel debtor={viewingDebtor} onClose={() => setViewingDebtor(null)} />
+      )}
     </>
   );
 }
