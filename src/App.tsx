@@ -30,11 +30,19 @@ import AdminConversations from "./pages/admin/AdminConversations";
 import AdminBilling from "./pages/admin/AdminBilling";
 import AdminSettings from "./pages/admin/AdminSettings";
 
+import { Loader2 } from "lucide-react";
+
 const queryClient = new QueryClient();
 
 function RootRedirect() {
   const { isAuthenticated, loading } = useAuth();
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    );
+  }
   return isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingPage />;
 }
 
@@ -43,7 +51,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<RootRedirect />} />
 
-      {/* Public auth routes */}
+      {/* Public auth routes — NO ProtectedRoute */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
