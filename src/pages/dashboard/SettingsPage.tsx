@@ -7,7 +7,7 @@ import { Save } from 'lucide-react';
 const tabs = ['Company Info', 'Notifications', 'Team Access', 'Billing', 'Security'];
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [activeTab, setActiveTab] = useState('Company Info');
 
   return (
