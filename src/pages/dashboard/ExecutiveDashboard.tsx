@@ -150,6 +150,11 @@ export default function ExecutiveDashboard() {
           </tbody>
         </table>
       </div>
+
+      {/* Active Debtors Table */}
+      <div className="mt-6">
+        <ActiveDebtorsTable />
+      </div>
     </PageWrapper>
   );
 }
