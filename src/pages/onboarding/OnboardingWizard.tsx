@@ -356,16 +356,7 @@ export default function OnboardingWizard() {
     };
 
     try {
-      const res = await fetch(`${API}/companies/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? data.message ?? 'Registration failed');
-      }
+      await registerCompany(payload);
 
       toast({ title: 'Success', description: 'Your account is set up! Redirecting to dashboard...' });
 
@@ -377,7 +368,7 @@ export default function OnboardingWizard() {
 
       setTimeout(() => navigate('/dashboard', { replace: true }), 2000);
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      toast({ title: 'Error', description: err.error ?? err.message ?? 'Registration failed', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
