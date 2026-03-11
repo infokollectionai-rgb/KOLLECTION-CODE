@@ -10,7 +10,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState('');
-  const { login, error: authError, isAuthenticated, loading } = useAuth();
+  const { login, enterDemoMode, error: authError, isAuthenticated, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
