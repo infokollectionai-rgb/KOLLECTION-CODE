@@ -192,7 +192,7 @@ export default function LandingPage() {
             Sign up in 5 steps. No contracts. No upfront cost beyond setup.<br />
             We recover your money — you keep 50% of every dollar we bring back.
           </p>
-          <Link to="/signup">
+          <Link to="/register">
             <NeonButton variant="solid" className="text-base px-8 py-3">
               Start Your Application <ArrowRight className="w-4 h-4" />
             </NeonButton>
