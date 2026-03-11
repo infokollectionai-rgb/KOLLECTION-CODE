@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Shield, ArrowRight, CheckCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle } from 'lucide-react';
 import NeonButton from '@/components/ui/NeonButton';
+import kollectionLogo from '@/assets/kollection-logo.png';
 
 export default function SignupPage() {
   const navigate = useNavigate();
