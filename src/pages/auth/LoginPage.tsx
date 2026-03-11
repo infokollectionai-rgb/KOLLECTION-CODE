@@ -14,8 +14,10 @@ export default function LoginPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && isAuthenticated) navigate('/dashboard', { replace: true });
-  }, [loading, isAuthenticated, navigate]);
+    if (!loading && isAuthenticated) {
+      navigate(isAdmin ? '/admin' : '/dashboard', { replace: true });
+    }
+  }, [loading, isAuthenticated, isAdmin, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
