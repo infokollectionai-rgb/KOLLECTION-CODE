@@ -117,6 +117,7 @@ export default function ActiveDebtorsTable() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [viewingDebtor, setViewingDebtor] = useState<Debtor | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; action: () => Promise<void> } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
