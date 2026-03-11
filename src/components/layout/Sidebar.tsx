@@ -2,10 +2,11 @@ import { useAuth } from '@/context/AuthContext';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, MessageSquare, CreditCard, FileText, Receipt,
-  Settings, Building2, DollarSign, Shield, ChevronLeft, ChevronRight,
+  Settings, Building2, DollarSign, ChevronLeft, ChevronRight,
   Menu, X, LogOut, User, Plus
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import kollectionLogo from '@/assets/kollection-logo.png';
 
 const userNav = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
