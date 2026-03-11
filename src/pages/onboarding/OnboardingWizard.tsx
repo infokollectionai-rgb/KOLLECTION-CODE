@@ -368,9 +368,9 @@ export default function OnboardingWizard() {
       toast({ title: 'Success', description: 'Your account is set up! Redirecting to dashboard...' });
 
       // Mark onboarding complete
-      const { supabase } = await import('@/lib/supabase');
+      const supabaseModule = await import('@/lib/supabase');
       if (user) {
-        await (supabase as any).from('client_companies').update({ onboarding_complete: true }).eq('auth_user_id', user.id);
+        await (supabaseModule.default as any).from('client_companies').update({ onboarding_complete: true }).eq('auth_user_id', user.id);
       }
 
       setTimeout(() => navigate('/dashboard', { replace: true }), 2000);
