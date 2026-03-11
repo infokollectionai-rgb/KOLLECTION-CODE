@@ -3,7 +3,7 @@ import { useAuth } from '@/context/AuthContext';
 import { apiClient } from '@/lib/apiClient';
 import { Search, Phone, MessageSquare, Mail, Mic, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import NeonButton from '@/components/ui/NeonButton';
-import ConversationPanel from '@/components/dashboard/ConversationPanel';
+import ConversationHistory from '@/components/dashboard/ConversationHistory';
 
 /* ── types ── */
 
@@ -353,7 +353,7 @@ export default function ActiveDebtorsTable() {
       />
 
       {viewingDebtor && (
-        <ConversationPanel debtor={viewingDebtor} onClose={() => setViewingDebtor(null)} />
+        <ConversationHistory debtorId={viewingDebtor.id} isOpen={!!viewingDebtor} onClose={() => setViewingDebtor(null)} />
       )}
     </>
   );
