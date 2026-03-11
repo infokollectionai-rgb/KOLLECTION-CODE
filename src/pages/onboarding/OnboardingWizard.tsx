@@ -40,8 +40,6 @@ const INDUSTRIES = [
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-const API = import.meta.env.VITE_API_URL ?? '';
-
 /* ── tiny reusable parts ── */
 
 function Field({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) {
