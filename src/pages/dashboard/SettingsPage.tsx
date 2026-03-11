@@ -7,7 +7,7 @@ import { Save } from 'lucide-react';
 const tabs = ['Company Info', 'Notifications', 'Team Access', 'Billing', 'Security'];
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [activeTab, setActiveTab] = useState('Company Info');
 
   return (
@@ -31,7 +31,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <label className="text-[11px] text-muted-foreground mb-1 block">Company Name</label>
-                <input defaultValue={user?.company || ''} className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm text-foreground focus:border-primary/30 outline-none" />
+                <input defaultValue={profile?.company_name || ''} className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm text-foreground focus:border-primary/30 outline-none" />
               </div>
               <div>
                 <label className="text-[11px] text-muted-foreground mb-1 block">Business Address</label>
@@ -39,7 +39,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <label className="text-[11px] text-muted-foreground mb-1 block">Primary Contact</label>
-                <input defaultValue={user?.name || ''} className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm text-foreground focus:border-primary/30 outline-none" />
+                <input defaultValue={profile?.contact_name || ''} className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm text-foreground focus:border-primary/30 outline-none" />
               </div>
               <NeonButton variant="solid" size="sm"><Save className="w-3 h-3" /> Save Changes</NeonButton>
             </div>
@@ -70,7 +70,7 @@ export default function SettingsPage() {
               <div className="bg-muted border border-border rounded-md p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-foreground">{user?.name}</p>
+                    <p className="text-sm text-foreground">{profile?.contact_name || user?.email}</p>
                     <p className="text-xs text-muted-foreground">{user?.email}</p>
                   </div>
                   <span className="text-[10px] font-mono text-primary">Manager</span>
