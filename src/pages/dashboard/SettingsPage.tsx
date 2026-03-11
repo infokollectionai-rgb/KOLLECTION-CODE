@@ -39,7 +39,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <label className="text-[11px] text-muted-foreground mb-1 block">Primary Contact</label>
-                <input defaultValue={user?.name || ''} className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm text-foreground focus:border-primary/30 outline-none" />
+                <input defaultValue={profile?.contact_name || ''} className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm text-foreground focus:border-primary/30 outline-none" />
               </div>
               <NeonButton variant="solid" size="sm"><Save className="w-3 h-3" /> Save Changes</NeonButton>
             </div>
