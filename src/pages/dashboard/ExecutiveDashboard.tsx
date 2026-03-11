@@ -54,6 +54,11 @@ export default function ExecutiveDashboard() {
         <KpiCard label="Your Next Payout" value={`$${clientPayout.toLocaleString()}`} subtext="Sep 1, 2025" />
       </div>
 
+      {/* Payment Activity Feed */}
+      <div className="mb-6">
+        <PaymentActivityFeed />
+      </div>
+
       {/* Operations summary (collapsed) */}
       <div className="bg-card border border-border rounded-lg p-4 mb-6">
         <div className="flex items-center justify-between">
