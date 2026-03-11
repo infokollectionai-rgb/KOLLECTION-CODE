@@ -353,7 +353,7 @@ export default function ActiveDebtorsTable() {
       />
 
       {viewingDebtor && (
-        <ConversationPanel debtor={viewingDebtor} onClose={() => setViewingDebtor(null)} />
+        <ConversationHistory debtorId={viewingDebtor.id} isOpen={!!viewingDebtor} onClose={() => setViewingDebtor(null)} />
       )}
     </>
   );
