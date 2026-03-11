@@ -13,15 +13,12 @@ export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const { login, error: authError, isAdmin } = useAuth();
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const result = login(email, password);
-    if (result.success) {
-      navigate(result.role === 'admin' ? '/admin' : '/dashboard');
-    } else {
-      setError(result.error || 'Invalid email or password');
-    }
+    await login(email, password);
   };
 
   return (

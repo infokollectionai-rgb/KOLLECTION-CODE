@@ -7,7 +7,7 @@ export default function TopHeader() {
   return (
     <header className="h-14 bg-card border-b border-border flex items-center justify-between px-4 md:px-6 fixed top-0 left-[60px] md:left-[220px] right-0 z-40">
       <div className="flex items-center gap-3">
-        <span className="text-sm text-foreground font-medium">{user?.company || 'Kollection'}</span>
+        <span className="text-sm text-foreground font-medium">{profile?.company_name || 'Kollection'}</span>
         <div className="hidden sm:flex items-center gap-1.5 ml-2">
           <span className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--status-green))]" />
           <span className="text-[10px] font-mono text-muted-foreground">AI Active</span>

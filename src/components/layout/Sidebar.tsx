@@ -102,8 +102,8 @@ export default function Sidebar() {
                 <User className="w-3.5 h-3.5 text-muted-foreground" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-foreground truncate">{user.name}</p>
-                <p className="text-[10px] text-muted-foreground truncate">{user.company}</p>
+                <p className="text-xs text-foreground truncate">{profile?.contact_name || user?.email}</p>
+                <p className="text-[10px] text-muted-foreground truncate">{profile?.company_name || ''}</p>
               </div>
             </div>
             <button onClick={handleLogout}

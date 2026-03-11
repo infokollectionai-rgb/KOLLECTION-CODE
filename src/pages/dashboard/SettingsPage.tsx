@@ -70,7 +70,7 @@ export default function SettingsPage() {
               <div className="bg-muted border border-border rounded-md p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-foreground">{user?.name}</p>
+                    <p className="text-sm text-foreground">{profile?.contact_name || user?.email}</p>
                     <p className="text-xs text-muted-foreground">{user?.email}</p>
                   </div>
                   <span className="text-[10px] font-mono text-primary">Manager</span>
