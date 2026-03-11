@@ -6,6 +6,13 @@ import kollectionLogo from '@/assets/kollection-logo.png';
 import { useAuth } from '@/context/AuthContext';
 import NeonButton from '@/components/ui/NeonButton';
 import { useToast } from '@/hooks/use-toast';
+import {
+  registerCompany,
+  testTwilioConnection,
+  testSendgridConnection,
+  testVapiConnection,
+  initiateStripeConnect,
+} from '@/services/provisioningService';
 
 /* ── constants ── */
 
