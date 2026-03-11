@@ -9,7 +9,7 @@ import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
-import OnboardingWizard from "./pages/OnboardingWizard";
+import OnboardingWizard from "./pages/onboarding/OnboardingWizard";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 import ExecutiveDashboard from "./pages/dashboard/ExecutiveDashboard";
