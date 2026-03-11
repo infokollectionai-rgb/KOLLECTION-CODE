@@ -351,6 +351,10 @@ export default function ActiveDebtorsTable() {
         onCancel={() => setConfirmDialog(null)}
         loading={actionLoading}
       />
+
+      {viewingDebtor && (
+        <ConversationPanel debtor={viewingDebtor} onClose={() => setViewingDebtor(null)} />
+      )}
     </>
   );
 }
