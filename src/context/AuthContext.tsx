@@ -164,6 +164,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const isAuthenticated = isDemoMode || session !== null;
+
   return (
     <AuthContext.Provider
       value={{
@@ -176,9 +178,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         resetPassword: resetPasswordFn,
-        isAuthenticated: session !== null,
+        enterDemoMode,
+        isAuthenticated,
         isAdmin: profile?.role === 'admin',
         isOnboarded: profile?.onboarding_complete === true,
+        isDemoMode,
       }}
     >
       {children}
