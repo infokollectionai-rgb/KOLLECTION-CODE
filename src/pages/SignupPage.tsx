@@ -44,11 +44,8 @@ export default function SignupPage() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-9 h-9 rounded-lg bg-neon/10 flex items-center justify-center">
-              <Shield className="w-4.5 h-4.5 text-neon" />
-            </div>
-            <span className="font-semibold text-foreground">Kollection</span>
+          <Link to="/" className="inline-block mb-6">
+            <img src={kollectionLogo} alt="Kollection" className="h-12 w-auto mx-auto" />
           </Link>
           <h1 className="text-2xl font-bold text-foreground mb-2">Create your account</h1>
           <p className="text-sm text-muted-foreground">Sign up to start recovering your outstanding loans.</p>

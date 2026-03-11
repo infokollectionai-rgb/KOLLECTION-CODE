@@ -204,8 +204,7 @@ export default function LandingPage() {
       <footer className="border-t border-border py-10">
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Shield className="w-3.5 h-3.5 text-primary" />
-            <span className="text-sm font-semibold text-foreground">Kollection</span>
+            <img src={kollectionLogo} alt="Kollection" className="h-6 w-auto" />
           </div>
           <div className="flex items-center gap-6 text-xs text-muted-foreground">
             <a href="#" className="hover:text-foreground transition-colors">Security</a>
