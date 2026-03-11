@@ -54,7 +54,7 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-3">
             <Link to="/login"><NeonButton size="sm">Sign In</NeonButton></Link>
-            <Link to="/signup"><NeonButton variant="solid" size="sm">Apply for Account</NeonButton></Link>
+            <Link to="/register"><NeonButton variant="solid" size="sm">Apply for Account</NeonButton></Link>
           </div>
         </div>
       </nav>
@@ -71,7 +71,7 @@ export default function LandingPage() {
             You track results in real time. We split what we collect.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center mb-16">
-            <Link to="/signup">
+            <Link to="/register">
               <NeonButton variant="solid" className="text-base px-8 py-3">
                 Apply for an Account <ArrowRight className="w-4 h-4" />
               </NeonButton>
@@ -148,7 +148,7 @@ export default function LandingPage() {
             </p>
           </div>
           <div className="text-center">
-            <Link to="/signup">
+            <Link to="/register">
               <NeonButton variant="solid" className="text-base px-8 py-3">
                 Apply for an Account <ArrowRight className="w-4 h-4" />
               </NeonButton>
@@ -192,7 +192,7 @@ export default function LandingPage() {
             Sign up in 5 steps. No contracts. No upfront cost beyond setup.<br />
             We recover your money — you keep 50% of every dollar we bring back.
           </p>
-          <Link to="/signup">
+          <Link to="/register">
             <NeonButton variant="solid" className="text-base px-8 py-3">
               Start Your Application <ArrowRight className="w-4 h-4" />
             </NeonButton>
