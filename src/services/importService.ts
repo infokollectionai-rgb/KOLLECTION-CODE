@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
+import { apiClient } from '@/lib/apiClient';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.kollection.io';
 const IS_DEMO = !import.meta.env.VITE_APP_ENV || import.meta.env.VITE_APP_ENV === 'demo';
 const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
 
@@ -121,12 +121,10 @@ export async function processImport({ rows, companyId }: { rows: ParsedRow[]; co
     };
   }
 
-  const res = await fetch(`${API_BASE}/import/process`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ accounts: validRows, companyId }),
-  });
-  return res.json();
+  const formData = new FormData();
+  const blob = new Blob([JSON.stringify({ accounts: validRows, companyId })], { type: 'application/json' });
+  formData.append('data', blob);
+  return apiClient.upload('/import/process', formData);
 }
 
 export async function getImportProgress({ importId }: { importId: string }) {
@@ -142,8 +140,7 @@ export async function getImportProgress({ importId }: { importId: string }) {
       status: progress === 100 ? 'COMPLETE' : 'IN_PROGRESS',
     };
   }
-  const res = await fetch(`${API_BASE}/import/progress/${importId}`);
-  return res.json();
+  return apiClient.get(`/import/progress/${importId}`);
 }
 
 export function downloadTemplate(format: 'xlsx' | 'csv' = 'xlsx') {

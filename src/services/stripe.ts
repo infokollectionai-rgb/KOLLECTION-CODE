@@ -1,4 +1,5 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.kollection.io';
+import { apiClient } from '@/lib/apiClient';
+
 const IS_DEMO = !import.meta.env.VITE_APP_ENV || import.meta.env.VITE_APP_ENV === 'demo';
 const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
 
@@ -8,8 +9,7 @@ export async function createPaymentLink({ debtorId, debtorName, amount, descript
     const id = Math.random().toString(36).substr(2, 8).toUpperCase();
     return { url: `https://buy.stripe.com/demo_${id}`, linkId: id, amount, expiresAt: new Date(Date.now() + 48 * 3600 * 1000).toISOString() };
   }
-  const res = await fetch(`${API_BASE}/payments/create-link`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ debtorId, debtorName, amount, description, companyId }) });
-  return res.json();
+  return apiClient.post('/payments/create-link', { debtorId, debtorName, amount, description, companyId });
 }
 
 export async function connectStripeAccount({ companyId, email, companyName }: { companyId: string; email: string; companyName?: string }) {
@@ -17,8 +17,7 @@ export async function connectStripeAccount({ companyId, email, companyName }: { 
     await wait(600);
     return { onboardingUrl: 'https://connect.stripe.com/demo', connected: true };
   }
-  const res = await fetch(`${API_BASE}/stripe/connect/onboard`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ companyId, email, companyName }) });
-  return res.json();
+  return apiClient.post('/stripe/connect/onboard', { companyId, email, companyName });
 }
 
 export async function getPayoutHistory({ companyId }: { companyId: string }) {
@@ -33,6 +32,5 @@ export async function getPayoutHistory({ companyId }: { companyId: string }) {
       ],
     };
   }
-  const res = await fetch(`${API_BASE}/payments/payouts/${companyId}`);
-  return res.json();
+  return apiClient.get(`/payments/payouts/${companyId}`);
 }
