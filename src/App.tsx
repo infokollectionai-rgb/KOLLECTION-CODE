@@ -3,13 +3,15 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "./context/AuthContext";
-import { ReactNode } from "react";
+import { AuthProvider } from "./context/AuthContext";
 
 import LandingPage from "./pages/LandingPage";
-import LoginPage from "./pages/LoginPage";
-import SignupPage from "./pages/SignupPage";
+import LoginPage from "./pages/auth/LoginPage";
+import RegisterPage from "./pages/auth/RegisterPage";
+import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import OnboardingWizard from "./pages/OnboardingWizard";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+
 import ExecutiveDashboard from "./pages/dashboard/ExecutiveDashboard";
 import ImportAccountsPage from "./pages/dashboard/ImportAccountsPage";
 import AccountManagement from "./pages/dashboard/AccountManagement";
@@ -19,6 +21,7 @@ import InstallmentPlans from "./pages/dashboard/InstallmentPlans";
 import Reports from "./pages/dashboard/Reports";
 import BillingPage from "./pages/dashboard/BillingPage";
 import SettingsPage from "./pages/dashboard/SettingsPage";
+
 import AdminOverview from "./pages/admin/AdminOverview";
 import AdminClients from "./pages/admin/AdminClients";
 import AdminClientDetail from "./pages/admin/AdminClientDetail";
@@ -28,39 +31,37 @@ import AdminSettings from "./pages/admin/AdminSettings";
 
 const queryClient = new QueryClient();
 
-function ProtectedRoute({ children, role }: { children: ReactNode; role?: 'admin' | 'user' }) {
-  const { user } = useAuth();
-  if (!user) return <Navigate to="/login" replace />;
-  if (role && user.role !== role) return <Navigate to="/" replace />;
-  return <>{children}</>;
-}
-
 function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
-      <Route path="/onboarding" element={<OnboardingWizard />} />
 
-      {/* User Dashboard */}
-      <Route path="/dashboard" element={<ProtectedRoute role="user"><ExecutiveDashboard /></ProtectedRoute>} />
-      <Route path="/dashboard/import" element={<ProtectedRoute role="user"><ImportAccountsPage /></ProtectedRoute>} />
-      <Route path="/dashboard/accounts" element={<ProtectedRoute role="user"><AccountManagement /></ProtectedRoute>} />
-      <Route path="/dashboard/conversations" element={<ProtectedRoute role="user"><ConversationsPage /></ProtectedRoute>} />
-      <Route path="/dashboard/activity" element={<ProtectedRoute role="user"><ActivityLog /></ProtectedRoute>} />
-      <Route path="/dashboard/installments" element={<ProtectedRoute role="user"><InstallmentPlans /></ProtectedRoute>} />
-      <Route path="/dashboard/reports" element={<ProtectedRoute role="user"><Reports /></ProtectedRoute>} />
-      <Route path="/dashboard/billing" element={<ProtectedRoute role="user"><BillingPage /></ProtectedRoute>} />
-      <Route path="/dashboard/settings" element={<ProtectedRoute role="user"><SettingsPage /></ProtectedRoute>} />
+      {/* Public auth routes */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+      {/* Onboarding — authenticated but not yet onboarded */}
+      <Route path="/onboarding" element={<ProtectedRoute requireOnboarded={false}><OnboardingWizard /></ProtectedRoute>} />
+
+      {/* Client dashboard — onboarded */}
+      <Route path="/dashboard" element={<ProtectedRoute><ExecutiveDashboard /></ProtectedRoute>} />
+      <Route path="/dashboard/import" element={<ProtectedRoute><ImportAccountsPage /></ProtectedRoute>} />
+      <Route path="/dashboard/accounts" element={<ProtectedRoute><AccountManagement /></ProtectedRoute>} />
+      <Route path="/dashboard/conversations" element={<ProtectedRoute><ConversationsPage /></ProtectedRoute>} />
+      <Route path="/dashboard/activity" element={<ProtectedRoute><ActivityLog /></ProtectedRoute>} />
+      <Route path="/dashboard/installments" element={<ProtectedRoute><InstallmentPlans /></ProtectedRoute>} />
+      <Route path="/dashboard/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+      <Route path="/dashboard/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
+      <Route path="/dashboard/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
       {/* Admin */}
-      <Route path="/admin" element={<ProtectedRoute role="admin"><AdminOverview /></ProtectedRoute>} />
-      <Route path="/admin/clients" element={<ProtectedRoute role="admin"><AdminClients /></ProtectedRoute>} />
-      <Route path="/admin/clients/:id" element={<ProtectedRoute role="admin"><AdminClientDetail /></ProtectedRoute>} />
-      <Route path="/admin/conversations" element={<ProtectedRoute role="admin"><AdminConversations /></ProtectedRoute>} />
-      <Route path="/admin/billing" element={<ProtectedRoute role="admin"><AdminBilling /></ProtectedRoute>} />
-      <Route path="/admin/settings" element={<ProtectedRoute role="admin"><AdminSettings /></ProtectedRoute>} />
+      <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminOverview /></ProtectedRoute>} />
+      <Route path="/admin/clients" element={<ProtectedRoute requireAdmin><AdminClients /></ProtectedRoute>} />
+      <Route path="/admin/clients/:id" element={<ProtectedRoute requireAdmin><AdminClientDetail /></ProtectedRoute>} />
+      <Route path="/admin/conversations" element={<ProtectedRoute requireAdmin><AdminConversations /></ProtectedRoute>} />
+      <Route path="/admin/billing" element={<ProtectedRoute requireAdmin><AdminBilling /></ProtectedRoute>} />
+      <Route path="/admin/settings" element={<ProtectedRoute requireAdmin><AdminSettings /></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
