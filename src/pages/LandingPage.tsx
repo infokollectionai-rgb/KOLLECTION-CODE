@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import { Shield, ArrowRight, CheckCircle, BarChart3, MessageSquare, Clock, DollarSign, Users, Zap, ChevronDown } from 'lucide-react';
+import { ArrowRight, CheckCircle, BarChart3, MessageSquare, Clock, DollarSign, Users, Zap, ChevronDown } from 'lucide-react';
 import NeonButton from '@/components/ui/NeonButton';
+import kollectionLogo from '@/assets/kollection-logo.png';
 import { useState } from 'react';
 
 const stats = [
