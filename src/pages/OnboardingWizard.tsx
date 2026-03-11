@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Shield, Check, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react';
+import kollectionLogo from '@/assets/kollection-logo.png';
 import { AnimatePresence, motion } from 'framer-motion';
 import NeonButton from '@/components/ui/NeonButton';
 import { verifyTwilio, verifyStripe, verifyVapi } from '@/services/provisioningService';
