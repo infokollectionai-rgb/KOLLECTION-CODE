@@ -1,4 +1,5 @@
-const OUTCALL_BASE = import.meta.env.VITE_OUTCALL_URL || 'https://api.kollection.io/calls';
+import { apiClient } from '@/lib/apiClient';
+
 const IS_DEMO = !import.meta.env.VITE_APP_ENV || import.meta.env.VITE_APP_ENV === 'demo';
 const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
 
@@ -13,8 +14,7 @@ export async function initiateCall({ debtorId, debtorName, phone, amount, compan
       script: `"Hello, may I speak with ${debtorName.split(' ')[0]}?" → identifies account → offers plan`,
     };
   }
-  const res = await fetch(`${OUTCALL_BASE}/initiate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ debtorId, debtorName, phone, amount, companyName, agentName, tier }) });
-  return res.json();
+  return apiClient.post('/agents/voice/call', { debtorId, debtorName, phone, amount, companyName, agentName, tier });
 }
 
 export async function getCallResult({ callId }: { callId: string }) {
@@ -37,6 +37,5 @@ export async function getCallResult({ callId }: { callId: string }) {
       ],
     };
   }
-  const res = await fetch(`${OUTCALL_BASE}/result/${callId}`);
-  return res.json();
+  return apiClient.get(`/agents/voice/result/${callId}`);
 }

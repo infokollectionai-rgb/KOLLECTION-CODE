@@ -1,4 +1,5 @@
-const API_BASE = import.meta.env.VITE_AI_AGENT_URL || 'https://api.kollection.io/agents';
+import { apiClient } from '@/lib/apiClient';
+
 const IS_DEMO = !import.meta.env.VITE_APP_ENV || import.meta.env.VITE_APP_ENV === 'demo';
 const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
 
@@ -16,8 +17,7 @@ export async function sendOutreach({ debtorId, debtorName, phone, email, channel
         : `Subject: Your account with ${companyName} — action needed`,
     };
   }
-  const res = await fetch(`${API_BASE}/outreach/send`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ debtorId, debtorName, phone, email, channel, amount, tier, companyName, agentName }) });
-  return res.json();
+  return apiClient.post('/agents/outreach/send', { debtorId, debtorName, phone, email, channel, amount, tier, companyName, agentName });
 }
 
 export async function getNegotiationSuggestion({ debtorId, conversationHistory, tier, balance, floor, companyName }: { debtorId: string; conversationHistory?: any[]; tier: number; balance: number; floor: number; companyName?: string }) {
@@ -30,8 +30,7 @@ export async function getNegotiationSuggestion({ debtorId, conversationHistory, 
     };
     return { suggestion: scripts[tier] || scripts[2], confidence: 0.84, stage: ['SOFT', 'FIRM', 'FINAL'][tier - 1] };
   }
-  const res = await fetch(`${API_BASE}/negotiation/suggest`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ debtorId, conversationHistory, tier, balance, floor, companyName }) });
-  return res.json();
+  return apiClient.post('/agents/negotiation/suggest', { debtorId, conversationHistory, tier, balance, floor, companyName });
 }
 
 export async function requestTakeover({ debtorId, requestedBy, reason }: { debtorId: string; requestedBy: string; reason?: string }) {
@@ -39,8 +38,7 @@ export async function requestTakeover({ debtorId, requestedBy, reason }: { debto
     await wait(600);
     return { ticketId: `TKO-${Math.random().toString(36).substr(2, 6).toUpperCase()}`, status: 'PENDING_HANDOFF', message: 'Kollection team notified. Expect contact within 4 business hours.' };
   }
-  const res = await fetch(`${API_BASE}/takeover/request`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ debtorId, requestedBy, reason }) });
-  return res.json();
+  return apiClient.post('/agents/takeover/request', { debtorId, requestedBy, reason });
 }
 
 export async function returnToAI({ debtorId, notes }: { debtorId: string; notes?: string }) {
@@ -48,8 +46,7 @@ export async function returnToAI({ debtorId, notes }: { debtorId: string; notes?
     await wait(400);
     return { success: true, aiResumedAt: new Date().toISOString() };
   }
-  const res = await fetch(`${API_BASE}/takeover/return`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ debtorId, notes }) });
-  return res.json();
+  return apiClient.post('/agents/takeover/return', { debtorId, notes });
 }
 
 export async function logPromise({ debtorId, amount, promisedDate, channel }: { debtorId: string; amount: number; promisedDate: string; channel: string }) {
@@ -57,6 +54,5 @@ export async function logPromise({ debtorId, amount, promisedDate, channel }: { 
     await wait(500);
     return { promiseId: `PTP-${Math.random().toString(36).substr(2, 6).toUpperCase()}`, followUpScheduled: true, reminderAt: promisedDate };
   }
-  const res = await fetch(`${API_BASE}/promises/log`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ debtorId, amount, promisedDate, channel }) });
-  return res.json();
+  return apiClient.post('/agents/promises/log', { debtorId, amount, promisedDate, channel });
 }
