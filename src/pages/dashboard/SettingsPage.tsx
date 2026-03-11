@@ -31,7 +31,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <label className="text-[11px] text-muted-foreground mb-1 block">Company Name</label>
-                <input defaultValue={user?.company || ''} className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm text-foreground focus:border-primary/30 outline-none" />
+                <input defaultValue={profile?.company_name || ''} className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm text-foreground focus:border-primary/30 outline-none" />
               </div>
               <div>
                 <label className="text-[11px] text-muted-foreground mb-1 block">Business Address</label>
