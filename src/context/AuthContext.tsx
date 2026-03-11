@@ -31,13 +31,18 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 async function fetchProfile(userId: string): Promise<Profile | null> {
-  const { data, error } = await supabase
-    .from('client_companies' as string)
-    .select('*')
-    .eq('auth_user_id', userId)
-    .single();
-  if (error || !data) return null;
-  return data as unknown as Profile;
+  try {
+    const { data, error } = await supabase
+      .from('client_companies' as string)
+      .select('*')
+      .eq('auth_user_id', userId)
+      .single();
+    if (error || !data) return null;
+    return data as unknown as Profile;
+  } catch {
+    console.warn('Failed to fetch profile — table may not exist yet');
+    return null;
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -57,50 +62,76 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      await loadProfile(s?.user ?? null);
-      setLoading(false);
-    });
+    let subscription: { unsubscribe: () => void } | undefined;
 
-    // Subscribe to auth changes
-    const subscription = onAuthStateChange(async (event, s) => {
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+    try {
+      // Get initial session
+      supabase.auth.getSession().then(async ({ data: { session: s } }) => {
         setSession(s);
         setUser(s?.user ?? null);
         await loadProfile(s?.user ?? null);
-      } else if (event === 'SIGNED_OUT') {
-        setSession(null);
-        setUser(null);
-        setProfile(null);
-      }
-    });
+        setLoading(false);
+      }).catch((err) => {
+        console.error('Failed to get session:', err);
+        setLoading(false);
+      });
+
+      // Subscribe to auth changes
+      subscription = onAuthStateChange(async (event, s) => {
+        try {
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            setSession(s);
+            setUser(s?.user ?? null);
+            await loadProfile(s?.user ?? null);
+          } else if (event === 'SIGNED_OUT') {
+            setSession(null);
+            setUser(null);
+            setProfile(null);
+          }
+        } catch (err) {
+          console.error('Auth state change error:', err);
+        }
+      });
+    } catch (err) {
+      console.error('Auth initialization failed:', err);
+      setLoading(false);
+    }
 
     return () => {
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, [loadProfile]);
 
   const login = async (email: string, password: string) => {
     setError(null);
-    const { error: err } = await signIn(email, password);
-    if (err) setError(err.message);
+    try {
+      const { error: err } = await signIn(email, password);
+      if (err) setError(err.message);
+    } catch (e: any) {
+      setError(e?.message || 'Login failed. Please try again.');
+    }
   };
 
   const register = async (email: string, password: string, companyName: string, contactName: string) => {
     setError(null);
-    const { error: err } = await signUp(email, password, {
-      company_name: companyName,
-      contact_name: contactName,
-    });
-    if (err) setError(err.message);
+    try {
+      const { error: err } = await signUp(email, password, {
+        company_name: companyName,
+        contact_name: contactName,
+      });
+      if (err) setError(err.message);
+    } catch (e: any) {
+      setError(e?.message || 'Registration failed. Please try again.');
+    }
   };
 
   const logout = async () => {
     setError(null);
-    await authSignOut();
+    try {
+      await authSignOut();
+    } catch {
+      // ignore
+    }
     setSession(null);
     setUser(null);
     setProfile(null);
@@ -108,8 +139,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resetPasswordFn = async (email: string) => {
     setError(null);
-    const { error: err } = await authResetPassword(email);
-    if (err) setError(err.message);
+    try {
+      const { error: err } = await authResetPassword(email);
+      if (err) setError(err.message);
+    } catch (e: any) {
+      setError(e?.message || 'Password reset failed.');
+    }
   };
 
   return (
