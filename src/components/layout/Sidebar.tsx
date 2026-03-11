@@ -2,10 +2,11 @@ import { useAuth } from '@/context/AuthContext';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, MessageSquare, CreditCard, FileText, Receipt,
-  Settings, Building2, DollarSign, Shield, ChevronLeft, ChevronRight,
+  Settings, Building2, DollarSign, ChevronLeft, ChevronRight,
   Menu, X, LogOut, User, Plus
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import kollectionLogo from '@/assets/kollection-logo.png';
 
 const userNav = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -63,12 +64,7 @@ export default function Sidebar() {
         mobileOpen ? 'translate-x-0' : collapsed ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
       }`}>
         <div className="h-14 flex items-center px-4 border-b border-border gap-2">
-          <div className="w-7 h-7 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <Shield className="w-3.5 h-3.5 text-primary" />
-          </div>
-          {(!collapsed || mobileOpen) && (
-            <span className="font-semibold text-sm text-foreground tracking-wide">Kollection</span>
-          )}
+          <img src={kollectionLogo} alt="Kollection" className={`flex-shrink-0 ${(!collapsed || mobileOpen) ? 'h-8' : 'h-7'} w-auto`} />
         </div>
 
         {isAdmin && (!collapsed || mobileOpen) && (

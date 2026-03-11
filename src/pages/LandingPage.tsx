@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import { Shield, ArrowRight, CheckCircle, BarChart3, MessageSquare, Clock, DollarSign, Users, Zap, ChevronDown } from 'lucide-react';
+import { ArrowRight, CheckCircle, BarChart3, MessageSquare, Clock, DollarSign, Users, Zap, ChevronDown } from 'lucide-react';
 import NeonButton from '@/components/ui/NeonButton';
+import kollectionLogo from '@/assets/kollection-logo.png';
 import { useState } from 'react';
 
 const stats = [
@@ -43,10 +44,7 @@ export default function LandingPage() {
       <nav className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-6 h-16">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Shield className="w-4 h-4 text-primary" />
-            </div>
-            <span className="font-semibold text-foreground tracking-tight">Kollection</span>
+            <img src={kollectionLogo} alt="Kollection" className="h-8 w-auto" />
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
             <a href="#features" className="hover:text-foreground transition-colors">Features</a>
@@ -206,8 +204,7 @@ export default function LandingPage() {
       <footer className="border-t border-border py-10">
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Shield className="w-3.5 h-3.5 text-primary" />
-            <span className="text-sm font-semibold text-foreground">Kollection</span>
+            <img src={kollectionLogo} alt="Kollection" className="h-6 w-auto" />
           </div>
           <div className="flex items-center gap-6 text-xs text-muted-foreground">
             <a href="#" className="hover:text-foreground transition-colors">Security</a>

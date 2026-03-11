@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Shield, Check, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react';
+import kollectionLogo from '@/assets/kollection-logo.png';
 import { AnimatePresence, motion } from 'framer-motion';
 import NeonButton from '@/components/ui/NeonButton';
 import { verifyTwilio, verifyStripe, verifyVapi } from '@/services/provisioningService';
@@ -174,8 +175,7 @@ export default function OnboardingWizard() {
         <div className="p-8">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4 text-primary" />
-              <span className="font-semibold text-sm text-foreground">Kollection</span>
+              <img src={kollectionLogo} alt="Kollection" className="h-8 w-auto" />
             </div>
             <span className="text-xs text-muted-foreground font-mono">Step {step} of {TOTAL_STEPS}</span>
           </div>
