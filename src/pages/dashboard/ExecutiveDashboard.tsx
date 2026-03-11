@@ -2,6 +2,7 @@ import PageWrapper from '@/components/layout/PageWrapper';
 import KpiCard from '@/components/ui/KpiCard';
 import StatusBadge from '@/components/ui/NeonBadge';
 import NeonButton from '@/components/ui/NeonButton';
+import PaymentActivityFeed from '@/components/dashboard/PaymentActivityFeed';
 import { mockDebtors, mockRecoveryChart, mockOperationsCosts } from '@/data/mockData';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Link } from 'react-router-dom';
@@ -51,6 +52,11 @@ export default function ExecutiveDashboard() {
         <KpiCard label="Total Recovered" value={`$${totalRecovered.toLocaleString()}`} accent="green" />
         <KpiCard label="Recovery Rate" value={`${recoveryRate}%`} accent="neon" />
         <KpiCard label="Your Next Payout" value={`$${clientPayout.toLocaleString()}`} subtext="Sep 1, 2025" />
+      </div>
+
+      {/* Payment Activity Feed */}
+      <div className="mb-6">
+        <PaymentActivityFeed />
       </div>
 
       {/* Operations summary (collapsed) */}
