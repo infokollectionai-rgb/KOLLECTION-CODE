@@ -315,7 +315,7 @@ export default function ActiveDebtorsTable() {
                     <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">{formatDate(d.next_scheduled)}</td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-1">
-                        <NeonButton size="sm" variant="ghost" onClick={() => {}}>View</NeonButton>
+                        <NeonButton size="sm" variant="ghost" onClick={() => setViewingDebtor(d)}>View</NeonButton>
                         <NeonButton size="sm" variant="ghost" onClick={() => handlePauseResume(d)}>{isPaused ? 'Resume' : 'Pause'}</NeonButton>
                         <NeonButton size="sm" variant="ghost" onClick={() => handleRemove(d)} className="text-destructive hover:text-destructive">Remove</NeonButton>
                       </div>
