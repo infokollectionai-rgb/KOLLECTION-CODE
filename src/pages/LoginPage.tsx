@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Shield, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
+import kollectionLogo from '@/assets/kollection-logo.png';
 import { useAuth } from '@/context/AuthContext';
 import NeonButton from '@/components/ui/NeonButton';
 
