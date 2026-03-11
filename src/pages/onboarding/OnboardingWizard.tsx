@@ -94,7 +94,7 @@ function TestButton({ status, errorMsg, onClick }: { status: TestStatus; errorMs
         onClick={onClick}
         disabled={status === 'testing' || status === 'success'}
       >
-        {status === 'success' ? <><Check className="w-3 h-3 text-green-400" /> Connected</> : 'Test Connection'}
+        {status === 'success' ? <><Check className="w-3 h-3 text-primary" /> Connected</> : 'Test Connection'}
       </NeonButton>
       {status === 'error' && errorMsg && <p className="text-[10px] text-destructive">{errorMsg}</p>}
     </div>
