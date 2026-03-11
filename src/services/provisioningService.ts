@@ -1,69 +1,56 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.kollection.io';
-const IS_DEMO = !import.meta.env.VITE_APP_ENV || import.meta.env.VITE_APP_ENV === 'demo';
-const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
+import supabase from '@/lib/supabase';
 
-export async function verifyTwilio({ accountSid, authToken, phoneNumber }: { accountSid: string; authToken: string; phoneNumber: string }) {
-  if (IS_DEMO) {
-    await wait(1400);
-    return {
-      valid: true,
-      phoneNumber: phoneNumber || '+18005550123',
-      accountName: 'QuickCash Loans Twilio',
-      message: 'Twilio credentials verified successfully.',
-    };
-  }
-  const res = await fetch(`${API_BASE}/provision/twilio/verify`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ accountSid, authToken, phoneNumber }),
+const baseUrl = import.meta.env.VITE_API_URL ?? '';
+
+async function authFetch(path: string, options: RequestInit = {}) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (session) headers['Authorization'] = `Bearer ${session.access_token}`;
+
+  const res = await fetch(`${baseUrl}${path}`, {
+    ...options,
+    headers: { ...headers, ...(options.headers as Record<string, string>) },
   });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Request failed' }));
+    throw err;
+  }
+
   return res.json();
 }
 
-export async function verifyStripe({ publishableKey, secretKey }: { publishableKey: string; secretKey: string }) {
-  if (IS_DEMO) {
-    await wait(1200);
-    return {
-      valid: true,
-      accountId: 'acct_demo_xxx',
-      accountName: 'QuickCash Loans Stripe',
-      currency: 'cad',
-      message: 'Stripe account connected successfully.',
-    };
-  }
-  const res = await fetch(`${API_BASE}/provision/stripe/verify`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ publishableKey, secretKey }),
+export async function registerCompany(payload: Record<string, unknown>) {
+  return authFetch('/companies/register', {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });
-  return res.json();
 }
 
-export async function verifyVapi({ apiKey, agentName, voice }: { apiKey: string; agentName?: string; voice?: string }) {
-  if (IS_DEMO) {
-    await wait(1600);
-    return {
-      valid: true,
-      assistantId: 'asst_demo_xxx',
-      agentName: agentName || 'Alex',
-      voice,
-      message: 'VAPI assistant verified and configured.',
-    };
-  }
-  const res = await fetch(`${API_BASE}/provision/vapi/verify`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ apiKey, agentName, voice }),
+export async function testTwilioConnection(account_sid: string, auth_token: string) {
+  return authFetch('/provision/test-twilio', {
+    method: 'POST',
+    body: JSON.stringify({ account_sid, auth_token }),
   });
-  return res.json();
 }
 
-export async function getInfrastructureStatus({ companyId }: { companyId: string }) {
-  if (IS_DEMO) {
-    await wait(400);
-    return {
-      twilio: { connected: true, phoneNumber: '+18005550123', lastVerified: '2025-07-15' },
-      stripe: { connected: true, accountId: 'acct_demo_xxx', lastVerified: '2025-07-15' },
-      vapi: { connected: true, assistantId: 'asst_demo_xxx', agentName: 'Alex', lastVerified: '2025-07-15' },
-    };
-  }
-  const res = await fetch(`${API_BASE}/provision/status/${companyId}`);
-  return res.json();
+export async function testSendgridConnection(api_key: string) {
+  return authFetch('/provision/test-sendgrid', {
+    method: 'POST',
+    body: JSON.stringify({ api_key }),
+  });
+}
+
+export async function testVapiConnection(api_key: string, assistant_id: string) {
+  return authFetch('/provision/test-vapi', {
+    method: 'POST',
+    body: JSON.stringify({ api_key, assistant_id }),
+  });
+}
+
+export async function initiateStripeConnect(companyId: string) {
+  return authFetch('/stripe/connect/onboard', {
+    method: 'POST',
+    body: JSON.stringify({ company_id: companyId }),
+  });
 }

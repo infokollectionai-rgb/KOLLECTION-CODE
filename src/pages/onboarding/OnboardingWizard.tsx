@@ -6,6 +6,13 @@ import kollectionLogo from '@/assets/kollection-logo.png';
 import { useAuth } from '@/context/AuthContext';
 import NeonButton from '@/components/ui/NeonButton';
 import { useToast } from '@/hooks/use-toast';
+import {
+  registerCompany,
+  testTwilioConnection,
+  testSendgridConnection,
+  testVapiConnection,
+  initiateStripeConnect,
+} from '@/services/provisioningService';
 
 /* ── constants ── */
 
@@ -32,8 +39,6 @@ const INDUSTRIES = [
 ];
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-const API = import.meta.env.VITE_API_URL ?? '';
 
 /* ── tiny reusable parts ── */
 
@@ -234,51 +239,46 @@ export default function OnboardingWizard() {
   };
 
   /* ── test helpers ── */
-  async function testEndpoint(url: string, body: object): Promise<{ ok: boolean; msg?: string }> {
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) return { ok: true };
-      const data = await res.json().catch(() => ({}));
-      return { ok: false, msg: data.error ?? data.message ?? `Error ${res.status}` };
-    } catch (err: any) {
-      return { ok: false, msg: err.message ?? 'Network error' };
-    }
-  }
-
   const handleTestTwilio = async () => {
     setTwilioStatus('testing');
-    const r = await testEndpoint(`${API}/provision/test-twilio`, { account_sid: twilioSid, auth_token: twilioToken });
-    setTwilioStatus(r.ok ? 'success' : 'error');
-    setTwilioError(r.msg ?? '');
+    try {
+      await testTwilioConnection(twilioSid, twilioToken);
+      setTwilioStatus('success');
+      setTwilioError('');
+    } catch (err: any) {
+      setTwilioStatus('error');
+      setTwilioError(err.error ?? err.message ?? 'Connection failed');
+    }
   };
 
   const handleTestSendGrid = async () => {
     setSgStatus('testing');
-    const r = await testEndpoint(`${API}/provision/test-sendgrid`, { api_key: sendgridKey });
-    setSgStatus(r.ok ? 'success' : 'error');
-    setSgError(r.ok ? '' : (r.msg ?? 'Failed. Check API key and domain authentication.'));
+    try {
+      await testSendgridConnection(sendgridKey);
+      setSgStatus('success');
+      setSgError('');
+    } catch (err: any) {
+      setSgStatus('error');
+      setSgError(err.error ?? err.message ?? 'Failed. Check API key and domain authentication.');
+    }
   };
 
   const handleTestVapi = async () => {
     setVapiStatus('testing');
-    const r = await testEndpoint(`${API}/provision/test-vapi`, { api_key: vapiKey });
-    setVapiStatus(r.ok ? 'success' : 'error');
-    setVapiError(r.msg ?? '');
+    try {
+      await testVapiConnection(vapiKey, vapiAssistantId);
+      setVapiStatus('success');
+      setVapiError('');
+    } catch (err: any) {
+      setVapiStatus('error');
+      setVapiError(err.error ?? err.message ?? 'Connection failed');
+    }
   };
 
   const handleStripeConnect = async () => {
     setStripeConnecting(true);
     try {
-      const res = await fetch(`${API}/stripe/connect/onboard`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ stripe_secret_key: stripeSecret }),
-      });
-      const data = await res.json();
+      const data = await initiateStripeConnect(user?.id ?? '');
       if (data.url) window.open(data.url, '_blank');
       if (data.account_id) setStripeConnectId(data.account_id);
     } catch {
@@ -354,16 +354,7 @@ export default function OnboardingWizard() {
     };
 
     try {
-      const res = await fetch(`${API}/companies/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? data.message ?? 'Registration failed');
-      }
+      await registerCompany(payload);
 
       toast({ title: 'Success', description: 'Your account is set up! Redirecting to dashboard...' });
 
@@ -375,7 +366,7 @@ export default function OnboardingWizard() {
 
       setTimeout(() => navigate('/dashboard', { replace: true }), 2000);
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      toast({ title: 'Error', description: err.error ?? err.message ?? 'Registration failed', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
