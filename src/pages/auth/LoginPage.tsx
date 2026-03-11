@@ -80,6 +80,26 @@ export default function LoginPage() {
               Forgot password?
             </Link>
           </div>
+
+          <div className="border-t border-border pt-4 mt-2">
+            <p className="text-[11px] text-muted-foreground text-center mb-3">Quick Demo Access</p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => enterDemoMode('client')}
+                className="flex-1 text-xs py-2 rounded-md border border-border bg-muted hover:bg-accent text-foreground transition-colors"
+              >
+                Client Demo
+              </button>
+              <button
+                type="button"
+                onClick={() => enterDemoMode('admin')}
+                className="flex-1 text-xs py-2 rounded-md border border-border bg-muted hover:bg-accent text-foreground transition-colors"
+              >
+                Admin Demo
+              </button>
+            </div>
+          </div>
         </form>
 
         <p className="text-center mt-5 text-sm text-muted-foreground">
