@@ -66,6 +66,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let subscription: { unsubscribe: () => void } | undefined;
+    let settled = false;
+
+    const settle = () => {
+      if (!settled) {
+        settled = true;
+        setLoading(false);
+      }
+    };
+
+    // Safety timeout — never stay loading forever
+    const timeout = setTimeout(() => {
+      console.warn('Auth initialization timed out after 5s');
+      settle();
+    }, 5000);
 
     try {
       // Get initial session
@@ -73,10 +87,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(s);
         setUser(s?.user ?? null);
         await loadProfile(s?.user ?? null);
-        setLoading(false);
+        settle();
       }).catch((err) => {
         console.error('Failed to get session:', err);
-        setLoading(false);
+        settle();
       });
 
       // Subscribe to auth changes
@@ -97,10 +111,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     } catch (err) {
       console.error('Auth initialization failed:', err);
-      setLoading(false);
+      settle();
     }
 
     return () => {
+      clearTimeout(timeout);
       subscription?.unsubscribe();
     };
   }, [loadProfile]);
