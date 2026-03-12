@@ -1,6 +1,6 @@
 import supabase from '@/lib/supabase';
 
-const baseUrl = import.meta.env.VITE_API_URL ?? '';
+const baseUrl = import.meta.env.VITE_API_URL || 'https://kollection-code-production.up.railway.app';
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
   try {
