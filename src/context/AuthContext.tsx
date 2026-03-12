@@ -115,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return () => {
+      clearTimeout(timeout);
       subscription?.unsubscribe();
     };
   }, [loadProfile]);
