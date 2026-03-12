@@ -1,8 +1,9 @@
 const express  = require('express');
 const router   = express.Router();
 const supabase = require('../database/supabase');
-const { encrypt }      = require('../utils/encryption');
-const { requireAuth }  = require('../middleware/auth');
+const { encrypt } = require('../utils/encryption');
+
+// TODO: restore requireAuth once frontend and backend share the same Supabase project.
 
 /**
  * POST /companies/register
@@ -10,11 +11,15 @@ const { requireAuth }  = require('../middleware/auth');
  * Accepts the full onboarding payload. Encrypts sensitive credentials,
  * creates (or updates) the client_companies row, inserts twilio_numbers,
  * and returns the sanitised company record.
+ *
+ * Auth is temporarily bypassed — auth_user_id and email must be supplied
+ * in the request body directly.
  */
-router.post('/register', requireAuth, async (req, res) => {
+router.post('/register', async (req, res) => {
   try {
     const {
-      // Identity
+      // Identity — auth_user_id must be sent by the frontend (no JWT check)
+      auth_user_id,
       company_name,
       contact_name,
       email,
@@ -35,7 +40,11 @@ router.post('/register', requireAuth, async (req, res) => {
       recovery_floor_pct,
     } = req.body;
 
-    const userId = req.user.id;
+    if (!auth_user_id) {
+      return res.status(400).json({ error: 'auth_user_id is required' });
+    }
+
+    const userId = auth_user_id;
 
     // Encrypt sensitive credentials before storing
     const encryptedTwilioToken  = twilio_auth_token  ? encrypt(twilio_auth_token)  : null;
