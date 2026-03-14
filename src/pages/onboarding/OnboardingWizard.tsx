@@ -13,6 +13,7 @@ import {
   testVapiConnection,
   initiateStripeConnect,
 } from '@/services/provisioningService';
+import supabase from '@/lib/supabase';
 
 /* ── constants ── */
 
