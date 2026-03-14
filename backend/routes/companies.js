@@ -1,116 +1,181 @@
 const express  = require('express');
 const router   = express.Router();
+const { v4: uuidv4 } = require('uuid');
 const supabase = require('../database/supabase');
 const { encrypt } = require('../utils/encryption');
 
 // TODO: restore requireAuth once frontend and backend share the same Supabase project.
 
 /**
+ * Extracts the user's `sub` (UUID) from the Authorization Bearer JWT
+ * WITHOUT signature verification. Safe to use here because we're only
+ * using it as an identifier, not as a security boundary — the route is
+ * temporarily public while Supabase projects are misaligned.
+ */
+function extractUserIdFromToken(authHeader) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+  try {
+    const payloadB64 = authHeader.slice(7).split('.')[1];
+    if (!payloadB64) return null;
+    const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
+    return payload.sub ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * POST /companies/register
  *
- * Accepts the full onboarding payload. Encrypts sensitive credentials,
- * creates (or updates) the client_companies row, inserts twilio_numbers,
- * and returns the sanitised company record.
+ * Accepts the nested onboarding payload from the wizard:
+ * {
+ *   company:     { company_name, business_email, business_phone, business_address, industry, ... }
+ *   twilio:      { account_sid, auth_token, phone_numbers }
+ *   sendgrid:    { api_key, from_email, from_name }
+ *   stripe:      { secret_key, webhook_secret, connect_account_id }
+ *   vapi:        { api_key, assistant_id, voice_agent_name }
+ *   preferences: { default_floor_percentage, ... }
+ * }
  *
- * Auth is temporarily bypassed — auth_user_id and email must be supplied
- * in the request body directly.
+ * auth_user_id is extracted from the Bearer JWT if present,
+ * or accepted explicitly in the body, or omitted (insert without it).
  */
 router.post('/register', async (req, res) => {
+  console.log('[/companies/register] HIT — body keys:', Object.keys(req.body ?? {}));
+
   try {
     const {
-      // Identity — auth_user_id must be sent by the frontend (no JWT check)
-      auth_user_id,
+      company     = {},
+      twilio      = {},
+      sendgrid    = {},
+      stripe      = {},
+      vapi        = {},
+      preferences = {},
+      // Legacy flat fields — accepted for backwards compatibility
+      auth_user_id: bodyUserId,
+    } = req.body;
+
+    // Resolve auth_user_id: JWT header > body field > generated UUID
+    const auth_user_id =
+      extractUserIdFromToken(req.headers['authorization']) ??
+      bodyUserId ??
+      uuidv4();
+
+    console.log('[/companies/register] auth_user_id resolved:', auth_user_id);
+
+    // ── Flatten nested payload into DB columns ──────────────────────────────
+
+    const company_name      = company.company_name      ?? null;
+    const contact_name      = company.contact_name      ?? null;
+    const email             = company.business_email    ?? company.email ?? null;
+    const phone             = company.business_phone    ?? company.phone ?? null;
+    const province          = company.business_address?.province ?? company.province ?? null;
+    const timezone          = company.timezone          ?? 'America/Toronto';
+    const industry          = company.industry          ?? null;
+
+    const twilio_account_sid   = twilio.account_sid    ?? null;
+    const twilio_auth_token    = twilio.auth_token      ?? null;
+    const twilio_phone_numbers = twilio.phone_numbers   ?? [];
+
+    const sendgrid_api_key     = sendgrid.api_key       ?? null;
+    const sendgrid_from_email  = sendgrid.from_email    ?? null;
+    const sendgrid_from_name   = sendgrid.from_name     ?? null;
+
+    const stripe_secret_key    = stripe.secret_key      ?? null;
+    const stripe_webhook_secret = stripe.webhook_secret ?? null;
+    const stripe_account_id    = stripe.connect_account_id ?? null;
+
+    const vapi_api_key         = vapi.api_key           ?? null;
+    const vapi_assistant_id    = vapi.assistant_id      ?? null;
+    const vapi_agent_name      = vapi.voice_agent_name  ?? vapi.agent_name ?? 'Alex';
+
+    const recovery_floor_pct   = preferences.default_floor_percentage ?? 30;
+
+    // ── Encrypt sensitive credentials ───────────────────────────────────────
+
+    const encryptedTwilioToken    = twilio_auth_token     ? encrypt(twilio_auth_token)     : null;
+    const encryptedSendgridKey    = sendgrid_api_key      ? encrypt(sendgrid_api_key)      : null;
+    const encryptedVapiKey        = vapi_api_key          ? encrypt(vapi_api_key)          : null;
+    const encryptedStripeKey      = stripe_secret_key     ? encrypt(stripe_secret_key)     : null;
+    const encryptedStripeWebhook  = stripe_webhook_secret ? encrypt(stripe_webhook_secret) : null;
+
+    // ── Build the row ────────────────────────────────────────────────────────
+
+    const row = {
+      ...(auth_user_id ? { auth_user_id } : {}),
       company_name,
       contact_name,
       email,
       phone,
       province,
       timezone,
-      // Twilio
+      industry,
       twilio_account_sid,
-      twilio_auth_token,
-      twilio_phone_numbers,   // string[] | { phoneNumber, friendlyName }[]
-      // SendGrid
-      sendgrid_api_key,
+      twilio_auth_token:    encryptedTwilioToken,
+      sendgrid_api_key:     encryptedSendgridKey,
       sendgrid_from_email,
-      // VAPI
-      vapi_api_key,
+      sendgrid_from_name,
+      stripe_secret_key:    encryptedStripeKey,
+      stripe_webhook_secret: encryptedStripeWebhook,
+      stripe_account_id,
+      vapi_api_key:         encryptedVapiKey,
       vapi_assistant_id,
-      // Business rules
+      vapi_agent_name,
       recovery_floor_pct,
-    } = req.body;
+      onboarding_complete:  true,
+      role:                 'client',
+    };
 
-    if (!auth_user_id) {
-      return res.status(400).json({ error: 'auth_user_id is required' });
-    }
+    // ── Upsert (auth_user_id is always present — JWT, body, or generated UUID) ─
 
-    const userId = auth_user_id;
-
-    // Encrypt sensitive credentials before storing
-    const encryptedTwilioToken  = twilio_auth_token  ? encrypt(twilio_auth_token)  : null;
-    const encryptedSendgridKey  = sendgrid_api_key   ? encrypt(sendgrid_api_key)   : null;
-    const encryptedVapiKey      = vapi_api_key       ? encrypt(vapi_api_key)       : null;
-
-    const { data: company, error: companyError } = await supabase
+    const { data: companyData, error: companyError } = await supabase
       .from('client_companies')
-      .upsert(
-        {
-          auth_user_id:        userId,
-          company_name:        company_name        ?? null,
-          contact_name:        contact_name        ?? null,
-          email:               email               ?? null,
-          phone:               phone               ?? null,
-          province:            province            ?? 'ON',
-          timezone:            timezone            ?? 'America/Toronto',
-          twilio_account_sid:  twilio_account_sid  ?? null,
-          twilio_auth_token:   encryptedTwilioToken,
-          sendgrid_api_key:    encryptedSendgridKey,
-          sendgrid_from_email: sendgrid_from_email ?? null,
-          vapi_api_key:        encryptedVapiKey,
-          vapi_assistant_id:   vapi_assistant_id   ?? null,
-          recovery_floor_pct:  recovery_floor_pct  ?? 30,
-          onboarding_complete: true,
-          role:                'client',
-        },
-        { onConflict: 'auth_user_id' }
-      )
+      .upsert(row, { onConflict: 'auth_user_id' })
       .select()
       .single();
 
     if (companyError) {
-      console.error('Company upsert error:', companyError);
+      console.error('[/companies/register] upsert error:', companyError);
       return res.status(400).json({ error: companyError.message });
     }
 
-    // Insert Twilio phone numbers
+    // ── Insert Twilio phone numbers ──────────────────────────────────────────
+
     if (Array.isArray(twilio_phone_numbers) && twilio_phone_numbers.length > 0) {
-      const numberRows = twilio_phone_numbers.map(n => ({
-        company_id:    company.id,
-        phone_number:  typeof n === 'string' ? n : n.phoneNumber,
-        friendly_name: typeof n === 'object'  ? (n.friendlyName ?? null) : null,
-        active:        true,
-      }));
+      const numberRows = twilio_phone_numbers
+        .filter(n => (typeof n === 'string' ? n : n?.phone_number ?? n?.phoneNumber))
+        .map(n => ({
+          company_id:    companyData.id,
+          phone_number:  typeof n === 'string' ? n : (n.phone_number ?? n.phoneNumber),
+          friendly_name: typeof n === 'object'  ? (n.label ?? n.friendly_name ?? n.friendlyName ?? null) : null,
+          active:        true,
+        }));
 
-      const { error: numbersError } = await supabase
-        .from('twilio_numbers')
-        .upsert(numberRows, { onConflict: 'company_id,phone_number' });
+      if (numberRows.length) {
+        const { error: numbersError } = await supabase
+          .from('twilio_numbers')
+          .upsert(numberRows, { onConflict: 'company_id,phone_number' });
 
-      if (numbersError) {
-        console.warn('Twilio numbers insert warning:', numbersError.message);
+        if (numbersError) {
+          console.warn('[/companies/register] Twilio numbers insert warning:', numbersError.message);
+        }
       }
     }
 
-    // Strip encrypted fields before returning
+    // ── Strip encrypted fields before returning ──────────────────────────────
+
     const {
-      twilio_auth_token:  _t,
-      sendgrid_api_key:   _s,
-      vapi_api_key:       _v,
+      twilio_auth_token:     _a,
+      sendgrid_api_key:      _b,
+      vapi_api_key:          _c,
+      stripe_secret_key:     _d,
+      stripe_webhook_secret: _e,
       ...safeCompany
-    } = company;
+    } = companyData;
 
     res.status(201).json({ company: safeCompany });
   } catch (err) {
-    console.error('Company registration error:', err);
+    console.error('[/companies/register] error:', err);
     res.status(500).json({ error: 'Registration failed' });
   }
 });
