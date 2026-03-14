@@ -308,10 +308,13 @@ export default function OnboardingWizard() {
 
   /* ── submit ── */
   const handleSubmit = async () => {
-    if (!validate(6)) return;
+    console.log('SUBMIT CLICKED - validating step 6');
+    if (!validate(6)) {
+      console.log('VALIDATION FAILED', errors);
+      return;
+    }
     setSubmitting(true);
-
-    const BACKEND_URL = 'https://kollection-code-production.up.railway.app';
+    console.log('SUBMITTING TO BACKEND');
 
     const payload = {
       company: {
@@ -356,25 +359,31 @@ export default function OnboardingWizard() {
       },
     };
 
-    try {
-      // Build auth header with timeout to prevent hanging
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      try {
-        const supabaseModule = await import('@/lib/supabase');
-        const sessionPromise = supabaseModule.default.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Session timeout')), 3000));
-        const { data } = await Promise.race([sessionPromise, timeoutPromise]) as any;
-        if (data?.session?.access_token) {
-          headers['Authorization'] = `Bearer ${data.session.access_token}`;
-        }
-      } catch {
-        console.warn('Could not attach auth token, proceeding without it');
-      }
+    console.log('PAYLOAD:', JSON.stringify(payload).slice(0, 500));
 
+    // Build headers
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    try {
+      const { data } = await Promise.race([
+        supabase.auth.getSession(),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+      ]);
+      if (data?.session?.access_token) {
+        headers['Authorization'] = `Bearer ${data.session.access_token}`;
+        console.log('AUTH TOKEN ATTACHED');
+      } else {
+        console.log('NO AUTH TOKEN AVAILABLE');
+      }
+    } catch (e) {
+      console.warn('Auth token fetch failed, proceeding without it', e);
+    }
+
+    try {
       const controller = new AbortController();
       const fetchTimeout = setTimeout(() => controller.abort(), 15000);
 
-      const res = await fetch(`${BACKEND_URL}/companies/register`, {
+      console.log('FETCHING https://kollection-code-production.up.railway.app/companies/register');
+      const res = await fetch('https://kollection-code-production.up.railway.app/companies/register', {
         method: 'POST',
         headers,
         body: JSON.stringify(payload),
@@ -382,18 +391,23 @@ export default function OnboardingWizard() {
       });
       clearTimeout(fetchTimeout);
 
+      console.log('RESPONSE STATUS:', res.status);
+
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({ error: 'Registration failed' }));
+        console.error('ERROR BODY:', errBody);
         throw new Error(errBody.error || errBody.message || `Server error ${res.status}`);
       }
 
-      toast({ title: 'Success', description: 'Your account is set up! Redirecting to dashboard...' });
+      const responseData = await res.json().catch(() => ({}));
+      console.log('SUCCESS RESPONSE:', responseData);
+
+      toast({ title: 'Success', description: 'Application submitted successfully!' });
 
       // Mark onboarding complete
       try {
-        const supabaseModule = await import('@/lib/supabase');
         if (user) {
-          await supabaseModule.default.from('client_companies').update({ onboarding_complete: true }).eq('auth_user_id', user.id);
+          await supabase.from('client_companies').update({ onboarding_complete: true }).eq('auth_user_id', user.id);
         }
       } catch {
         console.warn('Could not mark onboarding complete in DB');
@@ -401,6 +415,7 @@ export default function OnboardingWizard() {
 
       setTimeout(() => navigate('/dashboard', { replace: true }), 2000);
     } catch (err: any) {
+      console.error('SUBMIT ERROR:', err);
       const msg = err.name === 'AbortError' ? 'Request timed out. Please try again.' : (err.message ?? 'Registration failed');
       toast({ title: 'Error', description: msg, variant: 'destructive' });
     } finally {
