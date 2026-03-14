@@ -13,6 +13,7 @@ import {
   testVapiConnection,
   initiateStripeConnect,
 } from '@/services/provisioningService';
+import supabase from '@/lib/supabase';
 
 /* ── constants ── */
 
@@ -307,8 +308,13 @@ export default function OnboardingWizard() {
 
   /* ── submit ── */
   const handleSubmit = async () => {
-    if (!validate(6)) return;
+    console.log('SUBMIT CLICKED - validating step 6');
+    if (!validate(6)) {
+      console.log('VALIDATION FAILED', errors);
+      return;
+    }
     setSubmitting(true);
+    console.log('SUBMITTING TO BACKEND');
 
     const payload = {
       company: {
@@ -353,20 +359,65 @@ export default function OnboardingWizard() {
       },
     };
 
-    try {
-      await registerCompany(payload);
+    console.log('PAYLOAD:', JSON.stringify(payload).slice(0, 500));
 
-      toast({ title: 'Success', description: 'Your account is set up! Redirecting to dashboard...' });
+    // Build headers
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    try {
+      const { data } = await Promise.race([
+        supabase.auth.getSession(),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+      ]);
+      if (data?.session?.access_token) {
+        headers['Authorization'] = `Bearer ${data.session.access_token}`;
+        console.log('AUTH TOKEN ATTACHED');
+      } else {
+        console.log('NO AUTH TOKEN AVAILABLE');
+      }
+    } catch (e) {
+      console.warn('Auth token fetch failed, proceeding without it', e);
+    }
+
+    try {
+      const controller = new AbortController();
+      const fetchTimeout = setTimeout(() => controller.abort(), 15000);
+
+      console.log('FETCHING https://kollection-code-production.up.railway.app/companies/register');
+      const res = await fetch('https://kollection-code-production.up.railway.app/companies/register', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+      clearTimeout(fetchTimeout);
+
+      console.log('RESPONSE STATUS:', res.status);
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({ error: 'Registration failed' }));
+        console.error('ERROR BODY:', errBody);
+        throw new Error(errBody.error || errBody.message || `Server error ${res.status}`);
+      }
+
+      const responseData = await res.json().catch(() => ({}));
+      console.log('SUCCESS RESPONSE:', responseData);
+
+      toast({ title: 'Success', description: 'Application submitted successfully!' });
 
       // Mark onboarding complete
-      const supabaseModule = await import('@/lib/supabase');
-      if (user) {
-        await (supabaseModule.default as any).from('client_companies').update({ onboarding_complete: true }).eq('auth_user_id', user.id);
+      try {
+        if (user) {
+          await supabase.from('client_companies').update({ onboarding_complete: true }).eq('auth_user_id', user.id);
+        }
+      } catch {
+        console.warn('Could not mark onboarding complete in DB');
       }
 
       setTimeout(() => navigate('/dashboard', { replace: true }), 2000);
     } catch (err: any) {
-      toast({ title: 'Error', description: err.error ?? err.message ?? 'Registration failed', variant: 'destructive' });
+      console.error('SUBMIT ERROR:', err);
+      const msg = err.name === 'AbortError' ? 'Request timed out. Please try again.' : (err.message ?? 'Registration failed');
+      toast({ title: 'Error', description: msg, variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
