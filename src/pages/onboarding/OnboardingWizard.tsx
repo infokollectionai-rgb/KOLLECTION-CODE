@@ -310,6 +310,8 @@ export default function OnboardingWizard() {
     if (!validate(6)) return;
     setSubmitting(true);
 
+    const BACKEND_URL = 'https://kollection-code-production.up.railway.app';
+
     const payload = {
       company: {
         company_name: companyName,
@@ -354,19 +356,52 @@ export default function OnboardingWizard() {
     };
 
     try {
-      await registerCompany(payload);
+      // Build auth header with timeout to prevent hanging
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      try {
+        const supabaseModule = await import('@/lib/supabase');
+        const sessionPromise = supabaseModule.default.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Session timeout')), 3000));
+        const { data } = await Promise.race([sessionPromise, timeoutPromise]) as any;
+        if (data?.session?.access_token) {
+          headers['Authorization'] = `Bearer ${data.session.access_token}`;
+        }
+      } catch {
+        console.warn('Could not attach auth token, proceeding without it');
+      }
+
+      const controller = new AbortController();
+      const fetchTimeout = setTimeout(() => controller.abort(), 15000);
+
+      const res = await fetch(`${BACKEND_URL}/companies/register`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+      clearTimeout(fetchTimeout);
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({ error: 'Registration failed' }));
+        throw new Error(errBody.error || errBody.message || `Server error ${res.status}`);
+      }
 
       toast({ title: 'Success', description: 'Your account is set up! Redirecting to dashboard...' });
 
       // Mark onboarding complete
-      const supabaseModule = await import('@/lib/supabase');
-      if (user) {
-        await (supabaseModule.default as any).from('client_companies').update({ onboarding_complete: true }).eq('auth_user_id', user.id);
+      try {
+        const supabaseModule = await import('@/lib/supabase');
+        if (user) {
+          await supabaseModule.default.from('client_companies').update({ onboarding_complete: true }).eq('auth_user_id', user.id);
+        }
+      } catch {
+        console.warn('Could not mark onboarding complete in DB');
       }
 
       setTimeout(() => navigate('/dashboard', { replace: true }), 2000);
     } catch (err: any) {
-      toast({ title: 'Error', description: err.error ?? err.message ?? 'Registration failed', variant: 'destructive' });
+      const msg = err.name === 'AbortError' ? 'Request timed out. Please try again.' : (err.message ?? 'Registration failed');
+      toast({ title: 'Error', description: msg, variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
