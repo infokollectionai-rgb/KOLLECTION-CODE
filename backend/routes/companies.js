@@ -144,16 +144,16 @@ router.post('/register', async (req, res) => {
       role:                         'client',
     };
 
-    // ── Upsert (auth_user_id is always present — JWT, body, or generated UUID) ─
+    // ── Insert ──────────────────────────────────────────────────────────────
 
     const { data: companyData, error: companyError } = await supabase
       .from('client_companies')
-      .upsert(row, { onConflict: 'auth_user_id' })
+      .insert(row)
       .select()
       .single();
 
     if (companyError) {
-      console.error('[/companies/register] upsert error:', companyError);
+      console.error('[/companies/register] insert error:', companyError);
       return res.status(400).json({ error: companyError.message });
     }
 
