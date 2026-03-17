@@ -408,7 +408,9 @@ export default function OnboardingWizard() {
 
       // Update DB (fire and forget)
       if (user) {
-        supabase.from('client_companies').update({ onboarding_complete: true }).eq('auth_user_id', user.id).then(() => {
+        Promise.resolve(
+          supabase.from('client_companies').update({ onboarding_complete: true }).eq('auth_user_id', user.id)
+        ).then(() => {
           console.log('ONBOARDING MARKED COMPLETE IN DB');
         }).catch(() => {
           console.warn('Could not mark onboarding complete in DB');
