@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Plus, Trash2, Check, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { toast } from 'sonner';
 import kollectionLogo from '@/assets/kollection-logo.png';
 import { useAuth } from '@/context/AuthContext';
 import NeonButton from '@/components/ui/NeonButton';
-import { useToast } from '@/hooks/use-toast';
 import {
   registerCompany,
   testTwilioConnection,
