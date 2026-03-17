@@ -196,7 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         enterDemoMode,
         isAuthenticated,
         isAdmin: profile?.role === 'admin',
-        isOnboarded: profile?.onboarding_complete === true,
+        isOnboarded: profile?.onboarding_complete === true || localStorage.getItem('onboarding_complete') === 'true',
         isDemoMode,
       }}
     >
