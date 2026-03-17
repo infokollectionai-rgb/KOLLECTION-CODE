@@ -404,7 +404,8 @@ export default function OnboardingWizard() {
 
       toast({ title: 'Success', description: 'Application submitted successfully!' });
 
-      // Mark onboarding complete
+      // Mark onboarding complete in DB and localStorage
+      localStorage.setItem('onboarding_complete', 'true');
       try {
         if (user) {
           await supabase.from('client_companies').update({ onboarding_complete: true }).eq('auth_user_id', user.id);
@@ -413,7 +414,7 @@ export default function OnboardingWizard() {
         console.warn('Could not mark onboarding complete in DB');
       }
 
-      setTimeout(() => navigate('/dashboard', { replace: true }), 2000);
+      setTimeout(() => navigate('/dashboard', { replace: true }), 1000);
     } catch (err: any) {
       console.error('SUBMIT ERROR:', err);
       const msg = err.name === 'AbortError' ? 'Request timed out. Please try again.' : (err.message ?? 'Registration failed');
