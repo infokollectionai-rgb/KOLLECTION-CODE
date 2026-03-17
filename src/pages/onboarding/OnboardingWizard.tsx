@@ -111,9 +111,7 @@ function TestButton({ status, errorMsg, onClick }: { status: TestStatus; errorMs
 interface PhoneEntry { phone_number: string; label: string }
 
 export default function OnboardingWizard() {
-  const { user, session, profile } = useAuth();
-  const navigate = useNavigate();
-  const { toast } = useToast();
+  const { user } = useAuth();
 
   const [step, setStep] = useState(1);
   const [dir, setDir] = useState(1);
