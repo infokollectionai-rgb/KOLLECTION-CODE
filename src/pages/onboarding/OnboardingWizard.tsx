@@ -402,19 +402,26 @@ export default function OnboardingWizard() {
       const responseData = await res.json().catch(() => ({}));
       console.log('SUCCESS RESPONSE:', responseData);
 
-      toast({ title: 'Success', description: 'Application submitted successfully!' });
-
-      // Mark onboarding complete in DB and localStorage
+      // Mark onboarding complete immediately
       localStorage.setItem('onboarding_complete', 'true');
-      try {
-        if (user) {
-          await supabase.from('client_companies').update({ onboarding_complete: true }).eq('auth_user_id', user.id);
-        }
-      } catch {
-        console.warn('Could not mark onboarding complete in DB');
+      console.log('ONBOARDING MARKED COMPLETE IN LOCALSTORAGE');
+
+      // Update DB (fire and forget)
+      if (user) {
+        supabase.from('client_companies').update({ onboarding_complete: true }).eq('auth_user_id', user.id).then(() => {
+          console.log('ONBOARDING MARKED COMPLETE IN DB');
+        }).catch(() => {
+          console.warn('Could not mark onboarding complete in DB');
+        });
       }
 
-      setTimeout(() => navigate('/dashboard', { replace: true }), 1000);
+      toast({ title: 'Success', description: 'Application submitted successfully!' });
+      console.log('REDIRECTING TO DASHBOARD IN 1 SECOND');
+
+      setTimeout(() => {
+        console.log('EXECUTING REDIRECT NOW');
+        window.location.href = '/dashboard';
+      }, 1000);
     } catch (err: any) {
       console.error('SUBMIT ERROR:', err);
       const msg = err.name === 'AbortError' ? 'Request timed out. Please try again.' : (err.message ?? 'Registration failed');
