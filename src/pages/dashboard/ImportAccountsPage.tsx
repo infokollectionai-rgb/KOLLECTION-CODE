@@ -47,8 +47,37 @@ export default function ImportAccountsPage() {
   const handleLaunch = async () => {
     if (!parseResult) return;
     setPhase('progress');
-    const result = await processImport({ rows: parseResult.rows });
-    setImportResult(result);
+
+    // Map valid rows to backend format
+    const accounts = parseResult.rows
+      .filter(r => r.valid)
+      .map(r => ({
+        firstName: r.firstName,
+        lastName: r.lastName,
+        phone: r.phone,
+        email: r.email || '',
+        address: r.address,
+        city: r.city,
+        province: r.province,
+        postal: r.postal || '',
+        amountOwed: r.amount,
+        daysOverdue: r.daysOverdue,
+        loanType: r.loanType || '',
+        notes: r.notes || '',
+      }));
+
+    console.log('IMPORTING TO BACKEND', { accountCount: accounts.length });
+
+    try {
+      const response = await apiClient.post('/import/accounts', { accounts });
+      console.log('IMPORT RESPONSE:', response);
+      setImportResult(response);
+      toast.success(`Successfully imported ${accounts.length} accounts!`);
+    } catch (err: any) {
+      console.error('IMPORT ERROR:', err);
+      toast.error(err?.error || err?.message || 'Failed to import accounts');
+    }
+
     // Animate progress
     let p = 0;
     const interval = setInterval(() => {
