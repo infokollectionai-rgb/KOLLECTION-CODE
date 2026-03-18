@@ -4,7 +4,7 @@ const baseUrl = import.meta.env.VITE_API_URL || 'https://kollection-code-product
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await (supabase.auth as any).getSession();
     const headers: Record<string, string> = {};
     if (session) headers['Authorization'] = `Bearer ${session.access_token}`;
     return headers;
