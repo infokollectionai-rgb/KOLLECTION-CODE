@@ -279,7 +279,7 @@ export default function ImportAccountsPage() {
               <NeonButton size="sm" onClick={() => setPhase('preview')}>
                 <ArrowLeft className="w-3 h-3" /> Back
               </NeonButton>
-              <NeonButton variant="solid" onClick={handleLaunch}>
+              <NeonButton variant="solid" onClick={importToBackend}>
                 🚀 Import & Start AI Recovery
               </NeonButton>
             </div>
