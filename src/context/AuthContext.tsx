@@ -85,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       // Get initial session
-      supabase.auth.getSession().then(async ({ data: { session: s } }) => {
+      (supabase.auth as any).getSession().then(async ({ data: { session: s } }: any) => {
         setSession(s);
         setUser(s?.user ?? null);
         await loadProfile(s?.user ?? null);
