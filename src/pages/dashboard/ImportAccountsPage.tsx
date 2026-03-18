@@ -53,7 +53,7 @@ export default function ImportAccountsPage() {
     console.log("SENDING TO BACKEND NOW");
 
     try {
-      const response = await fetch("https://kollection-code-production.up.railway.app/import/accounts", {
+      const response = await fetch("https://kollection-code-production.up.railway.app/import/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
