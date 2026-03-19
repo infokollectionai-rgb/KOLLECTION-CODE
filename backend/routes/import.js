@@ -113,13 +113,12 @@ router.post('/process', upload.single('file'), async (req, res) => {
     }
 
     // Create the import job record
+    // NOTE: only inserting columns confirmed to exist — scroll the table to verify
+    // if status/total_count/processed_count/error_count columns exist and add them back.
     await supabase.from('import_jobs').insert({
       id:              importId,
       company_id:      companyId,
-      status:          'processing',
-      total_count:     accounts.length,
-      processed_count: 0,
-      error_count:     0,
+      filename:        req.file?.originalname ?? 'json-import',
     });
 
     // Process asynchronously — respond immediately
@@ -152,34 +151,29 @@ async function processImportAsync(importId, accounts, companyId) {
     const batch = accounts.slice(i, i + BATCH);
 
     const debtorRows = batch.map(acc => {
-      const tier    = calculateTier(acc.daysOverdue ?? acc.days_overdue ?? 0);
-      const balance = acc.amount ?? 0;
+      const tier   = calculateTier(acc.daysOverdue ?? acc.days_overdue ?? 0);
+      const amount = acc.amount ?? 0;
+      const firstName = acc.firstName ?? acc.first_name ?? '';
+      const lastName  = acc.lastName  ?? acc.last_name  ?? '';
+      const name      = acc.fullName  ?? acc.full_name  ?? `${firstName} ${lastName}`.trim();
       return {
-        company_id:   companyId,
-        first_name:   acc.firstName   ?? acc.first_name  ?? '',
-        last_name:    acc.lastName    ?? acc.last_name   ?? '',
-        full_name:    acc.fullName    ?? acc.full_name   ?? '',
-        phone:        acc.phone       ?? null,
-        email:        acc.email       ?? null,
-        address:      acc.address     ?? '',
-        city:         acc.city        ?? '',
-        province:     acc.province    ?? '',
-        postal:       acc.postal      ?? null,
-        balance,
-        floor_amount: balance * 0.30, // 30% default floor
-        days_overdue: acc.daysOverdue ?? acc.days_overdue ?? 0,
-        loan_type:    acc.loanType    ?? acc.loan_type   ?? 'Personal',
-        notes:        acc.notes       ?? null,
+        company_id:    companyId,
+        name,
+        first_name:    firstName,
+        phone:         acc.phone       ?? null,
+        email:         acc.email       ?? null,
+        amount,
+        floor_amount:  amount * 0.30, // 30% default floor
+        days_overdue:  acc.daysOverdue ?? acc.days_overdue ?? 0,
         tier,
-        status:       'active',
-        import_id:    importId,
+        import_job_id: importId,
       };
     });
 
     const { data: inserted, error } = await supabase
       .from('debtors')
       .insert(debtorRows)
-      .select('id, tier, balance, phone, province');
+      .select('id, tier, amount, phone');
 
     if (error) {
       console.error('Batch insert error:', error);
