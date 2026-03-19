@@ -54,7 +54,7 @@ router.post('/create-link', async (req, res) => {
 
     const stripeOpts = company?.stripe_account_id
       ? { stripeAccount: company.stripe_account_id }
-      : {};
+      : undefined;
 
     // Create product + price + payment link
     const product = await stripe.products.create(
