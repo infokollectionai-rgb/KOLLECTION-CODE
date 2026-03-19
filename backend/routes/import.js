@@ -113,12 +113,14 @@ router.post('/process', upload.single('file'), async (req, res) => {
     }
 
     // Create the import job record
-    // NOTE: only inserting columns confirmed to exist — scroll the table to verify
-    // if status/total_count/processed_count/error_count columns exist and add them back.
     await supabase.from('import_jobs').insert({
       id:              importId,
       company_id:      companyId,
       filename:        req.file?.originalname ?? 'json-import',
+      status:          'processing',
+      total_rows:      accounts.length,
+      processed_rows:  0,
+      error_rows:      0,
     });
 
     // Process asynchronously — respond immediately
@@ -126,7 +128,7 @@ router.post('/process', upload.single('file'), async (req, res) => {
       console.error('Async import error:', err);
       supabase
         .from('import_jobs')
-        .update({ status: 'failed', error: err.message })
+        .update({ status: 'failed', errors: err.message })
         .eq('id', importId);
     });
 
@@ -205,7 +207,7 @@ async function processImportAsync(importId, accounts, companyId) {
     // Update progress after every batch
     await supabase
       .from('import_jobs')
-      .update({ processed_count: processed, error_count: errors })
+      .update({ processed_rows: processed, error_rows: errors })
       .eq('id', importId);
   }
 
@@ -213,9 +215,8 @@ async function processImportAsync(importId, accounts, companyId) {
     .from('import_jobs')
     .update({
       status:          errors === accounts.length ? 'failed' : 'completed',
-      processed_count: processed,
-      error_count:     errors,
-      completed_at:    new Date().toISOString(),
+      processed_rows:  processed,
+      error_rows:      errors,
     })
     .eq('id', importId);
 }
@@ -235,8 +236,8 @@ router.get('/progress/:importId', async (req, res) => {
       return res.status(404).json({ error: 'Import job not found' });
     }
 
-    const percentComplete = job.total_count
-      ? Math.round((job.processed_count / job.total_count) * 100)
+    const percentComplete = job.total_rows
+      ? Math.round((job.processed_rows / job.total_rows) * 100)
       : 0;
 
     res.json({ ...job, percentComplete });
