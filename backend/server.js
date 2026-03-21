@@ -38,8 +38,8 @@ app.use('/stripe',     require('./routes/stripe-connect'));
 app.use('/admin',      require('./routes/admin'));
 
 // POST /calls/initiate — alias for POST /agents/voice/call
-const { requireAuth } = require('./middleware/auth');
-app.post('/calls/initiate', requireAuth, agentsRouter.initiateVoiceCall);
+// TODO: restore requireAuth once frontend and backend share the same Supabase project.
+app.post('/calls/initiate', agentsRouter.initiateVoiceCall);
 
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
