@@ -427,12 +427,13 @@ router.post('/promises/log', async (req, res) => {
     reminderDate.setHours(10, 0, 0, 0);
 
     await supabase.from('scheduled_contacts').insert({
-      debtor_id:    debtorId,
-      company_id:   resolvedCompanyId,
-      channel:      channel ?? 'sms',
-      scheduled_at: reminderDate.toISOString(),
-      type:         'promise_reminder',
-      metadata:     { promise_id: promiseId, amount, promised_date: promisedDate },
+      debtor_id:        debtorId,
+      company_id:       resolvedCompanyId,
+      channel:          channel ?? 'sms',
+      scheduled_for:    reminderDate.toISOString(),
+      layer:            'promise_reminder',
+      status:           'pending',
+      message_template: `Reminder: your payment of $${Number(amount).toFixed(2)} is due tomorrow.`,
     });
 
     res.json({ success: true, promiseId });

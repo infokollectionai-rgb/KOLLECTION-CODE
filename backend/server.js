@@ -41,6 +41,20 @@ app.use('/admin',      require('./routes/admin'));
 // TODO: restore requireAuth once frontend and backend share the same Supabase project.
 app.post('/calls/initiate', agentsRouter.initiateVoiceCall);
 
+// ─── Cron Worker ────────────────────────────────────────────────────────────
+// Called by Railway cron or n8n every 15 minutes
+const { processScheduledContacts } = require('./services/worker');
+
+app.get('/cron/process', async (req, res) => {
+  try {
+    const result = await processScheduledContacts();
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Cron process error:', err);
+    res.status(500).json({ error: err.message ?? 'Cron processing failed' });
+  }
+});
+
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ error: `Route ${req.method} ${req.path} not found` });

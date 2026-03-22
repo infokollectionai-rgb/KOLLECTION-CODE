@@ -187,12 +187,13 @@ async function processImportAsync(importId, accounts, companyId) {
         const seq = buildSequence(debtor);
         for (const contact of seq) {
           sequenceRows.push({
-            debtor_id:    debtor.id,
-            company_id:   companyId,
-            channel:      contact.channel,
-            scheduled_at: contact.scheduledAt,
-            type:         'sequence',
-            metadata:     { step: contact.step, tier: debtor.tier },
+            debtor_id:        debtor.id,
+            company_id:       companyId,
+            channel:          contact.channel,
+            scheduled_for:    contact.scheduledFor,
+            layer:            contact.layer,
+            status:           'pending',
+            message_template: null,
           });
         }
       }
