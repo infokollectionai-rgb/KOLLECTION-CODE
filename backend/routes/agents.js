@@ -169,6 +169,7 @@ router.post('/outreach/send', async (req, res) => {
 router.post('/negotiation/suggest', async (req, res) => {
   const {
     debtorId,
+    debtorPhone,
     conversationHistory = [],
     tier    = 1,
     amount,
@@ -176,6 +177,7 @@ router.post('/negotiation/suggest', async (req, res) => {
     companyName,
     agentName = 'Alex',
     companyId,
+    paymentLinkUrl,
   } = req.body;
 
   if (!debtorId || amount === undefined || amount === null) {
@@ -187,22 +189,40 @@ router.post('/negotiation/suggest', async (req, res) => {
     return res.status(400).json({ error: 'No companyId provided and no companies exist yet' });
   }
 
+  // Fetch company for business_phone
+  const { data: companyRecord } = await supabase
+    .from('client_companies')
+    .select('business_phone, company_name')
+    .eq('id', resolvedCompanyId)
+    .single();
+
   const floorAmount = floor ?? amount * 0.3;
+  const clientCompanyName = companyName ?? companyRecord?.company_name ?? 'a collections agency';
+  const companyPhone = companyRecord?.business_phone ?? process.env.TWILIO_DEFAULT_NUMBER ?? '+14389050764';
+
+  // Detect language from debtor phone area code
+  const FRENCH_AREA_CODES = ['514', '438', '450', '579', '418', '581', '819', '873'];
+  const phoneDigits = (debtorPhone ?? '').replace(/\D/g, '');
+  const areaCode = phoneDigits.startsWith('1') ? phoneDigits.slice(1, 4) : phoneDigits.slice(0, 3);
+  const lang = FRENCH_AREA_CODES.includes(areaCode) ? 'fr' : 'en';
 
   // Stage-based settlement ranges matching partner strategy
   const RANGES = {
-    1: { offer: amount * 0.70, min: amount * 0.50, max: amount },         // Stage 1: 30% discount, accept down to 50%
-    2: { offer: amount * 0.50, min: amount * 0.40, max: amount * 0.70 },  // Stage 2: 50% discount, accept down to 40%
-    3: { offer: amount * 0.40, min: floorAmount,   max: amount * 0.50 },  // Stage 3: 60% discount, accept down to floor
-    4: { offer: amount * 0.40, min: floorAmount,   max: amount * 0.50 },  // Stage 3+ (same as 3)
+    1: { offer: amount * 0.70, min: amount * 0.50, max: amount },
+    2: { offer: amount * 0.50, min: amount * 0.40, max: amount * 0.70 },
+    3: { offer: amount * 0.40, min: floorAmount,   max: amount * 0.50 },
+    4: { offer: amount * 0.40, min: floorAmount,   max: amount * 0.50 },
   };
   const range = RANGES[Math.min(tier, 4)];
 
-  const clientCompanyName = companyName ?? 'a collections agency';
-
   const systemPrompt = `You are a professional account resolution specialist working on behalf of ${clientCompanyName}. Your name is ${agentName}.
 
-LANGUAGE: Detect debtor language from their message or phone area code. Quebec codes (514, 438, 450, 579, 418, 581, 819, 873) = French. Ontario codes (416, 647, 437, 905, 289, 365, 343, 613, 705, 249) = English. If debtor writes in a specific language, ALWAYS continue in that language. Never mix languages. Use formal/vouvoiement in French.
+DEBTOR PHONE: ${debtorPhone ?? 'unknown'}
+LANGUAGE: ${lang === 'fr' ? 'FRENCH (formal/vouvoiement). Write ENTIRELY in French.' : 'ENGLISH. Write entirely in English.'}
+COMPANY PHONE: ${companyPhone}
+PAYMENT LINK: ${paymentLinkUrl ?? 'not yet generated'}
+
+LANGUAGE DETECTION: Quebec area codes (514, 438, 450, 579, 418, 581, 819, 873) = FRENCH. All other codes = ENGLISH. If debtor writes in a specific language, ALWAYS continue in that language. Never mix languages.
 
 PERSONALITY: You are persistent, calm, respectful, and solution-oriented. You never get angry. You adapt to each client type:
 - Stressed client: Stay calm and reassuring. Explain that finding an arrangement avoids bigger problems.
@@ -216,27 +236,26 @@ NEGOTIATION PARAMETERS:
 - Initial offer: $${range.offer.toFixed(2)} (${Math.round((1 - range.offer / amount) * 100)}% discount)
 - Acceptable range: $${range.min.toFixed(2)}–$${range.max.toFixed(2)} (DO NOT disclose this range)
 - Floor amount: $${floorAmount.toFixed(2)} (NEVER go below this, NEVER reveal it)
-- Collection stage: ${tier <= 1 ? 'Stage 1 (friendly/professional, days 0-14)' : tier <= 2 ? 'Stage 2 (direct/consequences, days 14+)' : 'Stage 3 (urgent/final, 60+ days or 2+ broken promises)'}
 
-NEGOTIATION STRATEGY — 3 STAGES:
+NEGOTIATION STRATEGY — use internally, NEVER mention stage numbers to debtor:
 
-STAGE 1 (Days 0-14, friendly/professional):
+EARLY CONTACT (Days 0-14, friendly/professional):
 - Mention the full balance and client company name
 - Offer a discount of 30% to close the file immediately
 - Or offer a payment plan: reduce weekly payments by 50% of original contract amount
 - Payment plan examples: $500 debt = $67/2weeks, $1000 debt = $98/week, $2000 debt = $80/week
-- If they agree: generate payment link IMMEDIATELY in the same message
+- If they agree: include the payment link IMMEDIATELY in the same message
 - Minimum acceptable: $25/week for small debts, proportional for larger
 - Tone: "We'd like to work with you to find a solution"
 
-STAGE 2 (Days 14+, direct/consequences):
+ESCALATED CONTACT (Days 14+, direct/consequences):
 - Reference that multiple attempts have been made
 - Mention that the file is about to be transferred to collections/legal
 - Offer 50% discount to close the file TODAY
 - The 50% offer can be split into max 2 payments within 14 days
 - Tone: "This is a final offer before additional procedures are initiated"
 
-STAGE 3 (After 2 broken promises OR 60+ days, urgent/threatening):
+FINAL CONTACT (After 2 broken promises OR 60+ days, urgent):
 - Use ONLY as last resort
 - Message about file transfer, wage garnishment, employer contact
 - Offer one final chance with a strict deadline
@@ -244,12 +263,11 @@ STAGE 3 (After 2 broken promises OR 60+ days, urgent/threatening):
 - Tone: "Immediate action required to avoid consequences"
 
 PAYMENT RULES:
-- ALWAYS generate and include a Stripe payment link when any amount is agreed
+- ALWAYS include the payment link when any amount is agreed
 - Payment link must be in the SAME message as the agreement
 - For 50% discount deals: payment within 7-14 days max
 - For payment plans: first payment immediately, then weekly/biweekly
-- After a payment is received, send confirmation and next payment date
-- After 2 broken promises: escalate to Stage 3 immediately
+- After 2 broken promises: escalate immediately
 
 PROMISE-TO-PAY SIGNALS (the "magic moments"):
 - Debtor asks "what is my balance?" = high intent
@@ -263,11 +281,13 @@ RESPONSE TO INSULTS:
 CEASE AND DESIST:
 If debtor says "stop contacting me" or mentions OPC/complaint: immediately stop, flag for human review.
 
-NEVER:
-- Claim to be human if directly asked
-- Go below the configured floor amount
-- Send a message without a payment link when agreement is reached
-- Be rude or match aggressive energy
+CRITICAL RULES — NEVER VIOLATE:
+- NEVER mention "Stage", "Tier", "Layer", or any internal system terminology to the debtor
+- NEVER invent phone numbers — the ONLY phone number you may reference is: ${companyPhone}
+- NEVER claim to be human if directly asked
+- NEVER go below the configured floor amount
+- NEVER send a message without the payment link when agreement is reached
+- NEVER be rude or match aggressive energy
 
 Always respond with a valid JSON object — no markdown, no extra text:
 {

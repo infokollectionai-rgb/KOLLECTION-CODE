@@ -6,6 +6,7 @@
  */
 
 const Anthropic = require('@anthropic-ai/sdk');
+const Stripe    = require('stripe');
 const twilio    = require('twilio');
 const sgMail    = require('@sendgrid/mail');
 
@@ -13,20 +14,20 @@ const supabase   = require('../database/supabase');
 const { decrypt } = require('../utils/encryption');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const stripe    = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 const BATCH_SIZE = 50;
 
+const FRENCH_AREA_CODES = ['514', '438', '450', '579', '418', '581', '819', '873'];
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-async function getCompanyTwilioNumber(companyId) {
-  const { data } = await supabase
-    .from('twilio_numbers')
-    .select('phone_number')
-    .eq('company_id', companyId)
-    .eq('active', true)
-    .limit(1)
-    .single();
-  return data?.phone_number ?? null;
+function detectLanguage(phone) {
+  if (!phone) return 'en';
+  // Strip +1 prefix to get area code
+  const digits = phone.replace(/\D/g, '');
+  const areaCode = digits.startsWith('1') ? digits.slice(1, 4) : digits.slice(0, 3);
+  return FRENCH_AREA_CODES.includes(areaCode) ? 'fr' : 'en';
 }
 
 function getStage(daysOverdue, brokenPromiseCount) {
@@ -35,12 +36,83 @@ function getStage(daysOverdue, brokenPromiseCount) {
   return 1;
 }
 
-async function generateAiMessage(debtor, company, channel) {
-  const stage      = getStage(debtor.days_overdue ?? 0, debtor.broken_promise_count ?? 0);
-  const amount     = debtor.amount ?? 0;
-  const floor      = debtor.floor_amount ?? amount * 0.3;
-  const agentName  = 'Alex';
+async function generatePaymentLink(debtor, companyId) {
+  try {
+    const amount     = debtor.amount ?? 0;
+    if (amount <= 0) return null;
+
+    const amountCents = Math.round(amount * 100);
+    const debtorName  = debtor.name ?? debtor.first_name ?? 'Client';
+
+    // Check for connected account
+    const { data: company } = await supabase
+      .from('client_companies')
+      .select('stripe_account_id')
+      .eq('id', companyId)
+      .single();
+
+    const stripeOpts = company?.stripe_account_id
+      ? { stripeAccount: company.stripe_account_id }
+      : undefined;
+
+    const product = await stripe.products.create({
+      name:     `Payment — ${debtorName}`,
+      metadata: { debtor_id: debtor.id, debtor_name: debtorName },
+    }, stripeOpts);
+
+    const price = await stripe.prices.create({
+      product:     product.id,
+      unit_amount: amountCents,
+      currency:    'cad',
+    }, stripeOpts);
+
+    const platformFeeCents = Math.round(amountCents * 0.50);
+
+    const linkParams = {
+      line_items: [{ price: price.id, quantity: 1 }],
+      metadata:   { debtor_id: debtor.id, company_id: companyId },
+      after_completion: {
+        type: 'hosted_confirmation',
+        hosted_confirmation: {
+          custom_message: 'Thank you. Your payment has been received and your account updated.',
+        },
+      },
+    };
+
+    if (company?.stripe_account_id) {
+      linkParams.application_fee_amount = platformFeeCents;
+    }
+
+    const paymentLink = await stripe.paymentLinks.create(linkParams, stripeOpts);
+
+    // Persist the link
+    const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
+    await supabase.from('payment_links').insert({
+      debtor_id:              debtor.id,
+      company_id:             companyId,
+      stripe_payment_link_id: paymentLink.id,
+      url:                    paymentLink.url,
+      amount,
+      description:            `Automated payment — ${debtorName}`,
+      status:                 'active',
+      expires_at:             expiresAt.toISOString(),
+    });
+
+    return paymentLink.url;
+  } catch (err) {
+    console.error(`[worker] Failed to generate payment link for debtor ${debtor.id}:`, err.message);
+    return null;
+  }
+}
+
+async function generateAiMessage(debtor, company, channel, paymentLinkUrl) {
+  const stage       = getStage(debtor.days_overdue ?? 0, debtor.broken_promise_count ?? 0);
+  const amount      = debtor.amount ?? 0;
+  const floor       = debtor.floor_amount ?? amount * 0.3;
   const companyName = company.company_name ?? 'Collections';
+  const companyPhone = company.business_phone ?? process.env.TWILIO_DEFAULT_NUMBER ?? '+14389050764';
+  const firstName   = debtor.first_name ?? debtor.name?.split(' ')[0] ?? 'Client';
+  const lang        = detectLanguage(debtor.phone);
 
   const RANGES = {
     1: { offer: amount * 0.70, min: amount * 0.50 },
@@ -49,46 +121,69 @@ async function generateAiMessage(debtor, company, channel) {
   };
   const range = RANGES[stage];
 
-  const stageLabel = {
-    1: 'Stage 1 (friendly/professional, days 0-14)',
-    2: 'Stage 2 (direct/consequences, days 14+)',
-    3: 'Stage 3 (urgent/final, 60+ days or 2+ broken promises)',
-  }[stage];
-
   const channelNote = channel === 'sms'
-    ? 'Keep your message under 160 characters. Be concise.'
-    : 'Write a professional email body with a clear call to action.';
+    ? 'Keep the message SHORT — under 320 characters total. No greetings like "Dear". Be direct.'
+    : 'Write a professional email body with a clear call to action and the payment link as a button/link.';
 
-  const prompt = `You are ${agentName}, a professional account resolution specialist for ${companyName}.
+  const prompt = `You are a professional account resolution specialist for ${companyName}.
 
-DEBTOR: ${debtor.first_name ?? debtor.name ?? 'Client'}
-BALANCE: $${amount.toFixed(2)}
-STAGE: ${stageLabel}
-OFFER: $${range.offer.toFixed(2)} (${Math.round((1 - range.offer / amount) * 100)}% discount)
-MINIMUM ACCEPTABLE: $${range.min.toFixed(2)} (DO NOT reveal)
+DEBTOR FIRST NAME: ${firstName}
+DEBTOR PHONE: ${debtor.phone ?? 'unknown'}
+LANGUAGE: ${lang === 'fr' ? 'FRENCH (formal/vouvoiement)' : 'ENGLISH'}
+COMPANY NAME: ${companyName}
+COMPANY PHONE: ${companyPhone}
+AMOUNT OWED: $${amount.toFixed(2)}
+OFFER AMOUNT: $${range.offer.toFixed(2)} (${Math.round((1 - range.offer / amount) * 100)}% discount)
+MINIMUM ACCEPTABLE: $${range.min.toFixed(2)} (DO NOT reveal to debtor)
+PAYMENT LINK: ${paymentLinkUrl ?? 'not available'}
 CHANNEL: ${channel}
+INTERNAL STAGE: ${stage} (DO NOT mention stage/tier/layer to debtor)
 
 ${channelNote}
 
-LANGUAGE: If the debtor's name suggests French-Canadian, write in formal French. Otherwise write in English.
+CRITICAL RULES:
+- NEVER mention "Stage", "Tier", "Layer", or any internal system terminology to the debtor
+- NEVER invent phone numbers — the ONLY phone number you may include is: ${companyPhone}
+- ALWAYS include the payment link URL if one is provided
+- Use the exact language detected (French or English), never mix
+- Sign the message with the company name only
 
-Generate a single outreach message appropriate for this stage and channel. Do NOT include JSON — just the plain message text.`;
+${lang === 'fr' ? `FRENCH SMS TEMPLATE (follow this style closely for Stage 1 first contact):
+"Bonjour ${firstName},
+Ici la compagnie ${companyName}.
+Ceci est un rappel que le solde de votre compte de ${amount.toFixed(2)}$ demeure impayé.
+Veuillez organiser un paiement de ce compte aujourd'hui ou contactez-nous pour convenir d'un accord de paiement.
+Lien de paiement: ${paymentLinkUrl ?? '[lien]'}
+${companyName}"` : `ENGLISH SMS TEMPLATE (follow this style closely for Stage 1 first contact):
+"Hi ${firstName},
+This is ${companyName}.
+This is a reminder that your account balance of $${amount.toFixed(2)} remains unpaid.
+Please arrange payment today or contact us to set up a payment arrangement.
+Payment link: ${paymentLinkUrl ?? '[link]'}
+${companyName}"`}
+
+Generate a single ${channel} message. Output ONLY the message text — no JSON, no quotes, no explanation.`;
 
   try {
     const response = await anthropic.messages.create({
       model:      'claude-sonnet-4-20250514',
-      max_tokens: 300,
+      max_tokens: 400,
       messages:   [{ role: 'user', content: prompt }],
     });
     return (response.content[0]?.text ?? '').trim();
   } catch (err) {
-    console.error('AI message generation failed:', err.message);
+    console.error('[worker] AI message generation failed:', err.message);
     // Fallback static messages
-    const firstName = debtor.first_name ?? debtor.name?.split(' ')[0] ?? 'there';
-    if (channel === 'sms') {
-      return `Hi ${firstName}, this is Alex from ${companyName}. You have an outstanding balance of $${amount.toFixed(2)}. Please reply to discuss payment options. Reply STOP to opt out.`;
+    if (lang === 'fr') {
+      if (channel === 'sms') {
+        return `Bonjour ${firstName},\nIci la compagnie ${companyName}.\nCeci est un rappel que le solde de votre compte de ${amount.toFixed(2)}$ demeure impayé.\nVeuillez organiser un paiement de ce compte aujourd'hui ou contactez-nous pour convenir d'un accord de paiement.${paymentLinkUrl ? `\nLien de paiement: ${paymentLinkUrl}` : ''}\n${companyName}`;
+      }
+      return `Bonjour ${firstName},\n\nIci la compagnie ${companyName}.\n\nCeci est un rappel que le solde de votre compte de ${amount.toFixed(2)}$ demeure impayé.\n\nVeuillez organiser un paiement de ce compte aujourd'hui ou contactez-nous au ${companyPhone} pour convenir d'un accord de paiement.\n${paymentLinkUrl ? `\nLien de paiement: ${paymentLinkUrl}\n` : ''}\nCordialement,\n${companyName}`;
     }
-    return `Hi ${firstName},\n\nThis is Alex from ${companyName}. We are reaching out regarding your outstanding balance of $${amount.toFixed(2)}.\n\nWe'd like to work with you to find a resolution. Please reply to discuss your options.\n\nSincerely,\nAlex\n${companyName}`;
+    if (channel === 'sms') {
+      return `Hi ${firstName},\nThis is ${companyName}.\nYour account balance of $${amount.toFixed(2)} remains unpaid.\nPlease arrange payment today or contact us to discuss options.${paymentLinkUrl ? `\nPayment link: ${paymentLinkUrl}` : ''}\n${companyName}`;
+    }
+    return `Hi ${firstName},\n\nThis is ${companyName}. We are reaching out regarding your outstanding balance of $${amount.toFixed(2)}.\n\nWe'd like to work with you to find a resolution. Please contact us at ${companyPhone} to discuss your options.\n${paymentLinkUrl ? `\nPay now: ${paymentLinkUrl}\n` : ''}\nSincerely,\n${companyName}`;
   }
 }
 
@@ -129,15 +224,12 @@ async function sendEmail(debtor, company, message) {
 
   sgMail.setApiKey(apiKey);
 
-  const firstName   = debtor.first_name ?? debtor.name?.split(' ')[0] ?? 'Client';
   const companyName = company.company_name ?? 'Collections';
   const subject     = `Account Notice — ${companyName}`;
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <p>${message.replace(/\n/g, '<br>')}</p>
-      <br>
-      <p>Sincerely,<br>Alex<br>${companyName}</p>
     </div>
   `.trim();
 
@@ -246,7 +338,7 @@ async function processScheduledContacts() {
       if (!companyCache[contact.company_id]) {
         const { data: company, error: companyError } = await supabase
           .from('client_companies')
-          .select('id, company_name, twilio_account_sid, twilio_auth_token, sendgrid_api_key, sendgrid_from_email, sendgrid_from_name')
+          .select('id, company_name, business_phone, twilio_account_sid, twilio_auth_token, sendgrid_api_key, sendgrid_from_email, sendgrid_from_name')
           .eq('id', contact.company_id)
           .single();
 
@@ -267,15 +359,21 @@ async function processScheduledContacts() {
 
       const company = companyCache[contact.company_id];
 
-      // 5. Generate message and send
+      // 5. Generate payment link BEFORE AI message generation
+      let paymentLinkUrl = null;
+      if (contact.channel === 'sms' || contact.channel === 'email') {
+        paymentLinkUrl = await generatePaymentLink(debtor, contact.company_id);
+      }
+
+      // 6. Generate message and send
       let result;
 
       if (contact.channel === 'sms') {
-        const message = contact.message_template ?? await generateAiMessage(debtor, company, 'sms');
+        const message = contact.message_template ?? await generateAiMessage(debtor, company, 'sms', paymentLinkUrl);
         result = await sendSms(debtor, company, message);
 
       } else if (contact.channel === 'email') {
-        const message = contact.message_template ?? await generateAiMessage(debtor, company, 'email');
+        const message = contact.message_template ?? await generateAiMessage(debtor, company, 'email', paymentLinkUrl);
         result = await sendEmail(debtor, company, message);
 
       } else if (contact.channel === 'call') {
@@ -288,7 +386,7 @@ async function processScheduledContacts() {
         continue;
       }
 
-      // 6. Mark as sent
+      // 7. Mark as sent
       await markContact(contact.id, 'sent');
       sent++;
 
@@ -299,7 +397,7 @@ async function processScheduledContacts() {
         channel:    contact.channel,
         direction:  'outbound',
         status:     'sent',
-        metadata:   { ...result, layer: contact.layer, worker: true },
+        metadata:   { ...result, layer: contact.layer, worker: true, paymentLink: paymentLinkUrl },
       });
 
       console.log(`[worker] Sent ${contact.channel} to debtor ${debtor.id}`);
@@ -308,7 +406,7 @@ async function processScheduledContacts() {
       console.error(`[worker] Error processing contact ${contact.id} (channel=${contact.channel}, debtor=${contact.debtor_id}):`);
       console.error(`[worker] Message: ${err.message}`);
       console.error(`[worker] Stack: ${err.stack}`);
-      // 7. Mark as failed
+      // 8. Mark as failed
       await markContact(contact.id, 'failed');
       failed++;
     }
