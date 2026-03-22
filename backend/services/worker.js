@@ -97,18 +97,28 @@ Generate a single outreach message appropriate for this stage and channel. Do NO
 async function sendSms(debtor, company, message) {
   const sid   = company.twilio_account_sid ?? process.env.TWILIO_ACCOUNT_SID;
   const token = company._decrypted_twilio_auth_token ?? process.env.TWILIO_AUTH_TOKEN;
-  if (!sid || !token) throw new Error('Twilio credentials not configured');
+  if (!sid || !token) {
+    console.error(`[worker:sms] Twilio credentials missing — sid=${!!sid}, token=${!!token}, company=${company.id}`);
+    throw new Error('Twilio credentials not configured');
+  }
 
-  const fromNumber = await getCompanyTwilioNumber(company.id);
-  if (!fromNumber) throw new Error('No active Twilio number for company');
+  const fromNumber = process.env.TWILIO_DEFAULT_NUMBER || '+14389050764';
 
-  const client = twilio(sid, token);
-  const msg = await client.messages.create({
-    body: message,
-    from: fromNumber,
-    to:   debtor.phone,
-  });
-  return { sid: msg.sid, status: msg.status };
+  try {
+    const client = twilio(sid, token);
+    const msg = await client.messages.create({
+      body: message,
+      from: fromNumber,
+      to:   debtor.phone,
+    });
+    return { sid: msg.sid, status: msg.status };
+  } catch (err) {
+    console.error(`[worker:sms] Twilio send failed — debtor=${debtor.id}, to=${debtor.phone}, from=${fromNumber}`);
+    console.error(`[worker:sms] Error: ${err.message}`);
+    console.error(`[worker:sms] Stack: ${err.stack}`);
+    if (err.code) console.error(`[worker:sms] Twilio error code: ${err.code}, moreInfo: ${err.moreInfo ?? 'n/a'}`);
+    throw err;
+  }
 }
 
 async function sendEmail(debtor, company, message) {
@@ -295,7 +305,9 @@ async function processScheduledContacts() {
       console.log(`[worker] Sent ${contact.channel} to debtor ${debtor.id}`);
 
     } catch (err) {
-      console.error(`[worker] Error processing contact ${contact.id}:`, err.message);
+      console.error(`[worker] Error processing contact ${contact.id} (channel=${contact.channel}, debtor=${contact.debtor_id}):`);
+      console.error(`[worker] Message: ${err.message}`);
+      console.error(`[worker] Stack: ${err.stack}`);
       // 7. Mark as failed
       await markContact(contact.id, 'failed');
       failed++;

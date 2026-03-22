@@ -112,8 +112,8 @@ router.post('/outreach/send', async (req, res) => {
     if (channel === 'sms') {
       if (!phone) return res.status(400).json({ error: 'phone is required for SMS' });
 
-      const fromNumber = await getCompanyTwilioNumber(resolvedCompanyId);
-      if (!fromNumber) return res.status(400).json({ error: 'No active Twilio number configured' });
+      const fromNumber = process.env.TWILIO_DEFAULT_NUMBER ?? await getCompanyTwilioNumber(resolvedCompanyId);
+      if (!fromNumber) return res.status(400).json({ error: 'No Twilio number configured — set TWILIO_DEFAULT_NUMBER' });
 
       const sid    = creds.twilio_account_sid ?? process.env.TWILIO_ACCOUNT_SID;
       const token  = creds.twilio_auth_token  ?? process.env.TWILIO_AUTH_TOKEN;
