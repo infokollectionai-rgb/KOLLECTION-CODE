@@ -122,19 +122,15 @@ async function generateAiMessage(debtor, company, channel) {
   const range = RANGES[stage];
 
   const channelNote = channel === 'sms'
-    ? 'Keep the message SHORT — under 320 characters total. No greetings like "Dear". Be direct.'
-    : 'Write a professional email body with a clear call to action.';
+    ? 'You are having a conversation via SMS. Keep messages SHORT (under 320 characters when possible). Be direct. Offer specific numbers. Do not tell the debtor to contact you — you ARE contacting them right now.'
+    : 'Write a professional email body. Be direct. Offer specific numbers. You are reaching out — do not tell them to contact you.';
 
-  const ctaFr = `Contactez-nous pour trouver une solution ensemble.`;
-  const ctaEn = `Contact us to find a solution together.`;
-
-  const prompt = `You are a professional account resolution specialist for ${companyName}.
+  const prompt = `You are a professional account resolution specialist for ${companyName}. You are reaching out to the debtor directly — YOU are the contact.
 
 DEBTOR FIRST NAME: ${firstName}
 DEBTOR PHONE: ${debtor.phone ?? 'unknown'}
 LANGUAGE: ${lang === 'fr' ? 'FRENCH (formal/vouvoiement)' : 'ENGLISH'}
 COMPANY NAME: ${companyName}
-COMPANY PHONE: ${companyPhone}
 AMOUNT OWED: $${amount.toFixed(2)}
 CHANNEL: ${channel}
 INTERNAL STAGE: ${stage} (DO NOT mention stage/tier/layer to debtor)
@@ -143,22 +139,23 @@ ${channelNote}
 
 CRITICAL RULES:
 - NEVER mention "Stage", "Tier", "Layer", or any internal system terminology to the debtor
-- NEVER invent phone numbers — the ONLY phone number you may include is: ${companyPhone}
+- NEVER invent phone numbers
 - NEVER include a payment link in outreach messages. Payment links are ONLY sent after the debtor agrees to a specific amount or payment plan during a conversation.
-- End the message with a friendly call-to-action: "${lang === 'fr' ? ctaFr : ctaEn}"
+- NEVER say "contact us", "call us", "reach out to us", or any variation. YOU are contacting THEM. Instead, ask them to reply to this message.
+- Once you start in a language, NEVER switch. The debtor may reply in a different language — ignore that and continue in the language you started with based on their phone area code.
 - Use the exact language detected (French or English), never mix
 - Sign the message with the company name only
 
 ${lang === 'fr' ? `FRENCH SMS TEMPLATE (follow this style closely):
 "Bonjour ${firstName},
-Ici la compagnie ${companyName}.
-Ceci est un rappel que le solde de votre compte de ${amount.toFixed(2)}$ demeure impayé.
-Contactez-nous pour trouver une solution ensemble.
+Ici ${companyName}.
+Le solde de votre compte de ${amount.toFixed(2)}$ demeure impayé.
+Répondez à ce message pour discuter d'un arrangement de paiement.
 ${companyName}"` : `ENGLISH SMS TEMPLATE (follow this style closely):
 "Hi ${firstName},
 This is ${companyName}.
-This is a reminder that your account balance of $${amount.toFixed(2)} remains unpaid.
-Contact us to find a solution together.
+Your account balance of $${amount.toFixed(2)} remains unpaid.
+Reply to this message to discuss a payment arrangement.
 ${companyName}"`}
 
 Generate a single ${channel} message. Output ONLY the message text — no JSON, no quotes, no explanation.`;
@@ -172,17 +169,17 @@ Generate a single ${channel} message. Output ONLY the message text — no JSON, 
     return (response.content[0]?.text ?? '').trim();
   } catch (err) {
     console.error('[worker] AI message generation failed:', err.message);
-    // Fallback static messages — no payment links
+    // Fallback static messages
     if (lang === 'fr') {
       if (channel === 'sms') {
-        return `Bonjour ${firstName},\nIci la compagnie ${companyName}.\nCeci est un rappel que le solde de votre compte de ${amount.toFixed(2)}$ demeure impayé.\nContactez-nous pour trouver une solution ensemble.\n${companyName}`;
+        return `Bonjour ${firstName},\nIci ${companyName}.\nLe solde de votre compte de ${amount.toFixed(2)}$ demeure impayé.\nRépondez à ce message pour discuter d'un arrangement de paiement.\n${companyName}`;
       }
-      return `Bonjour ${firstName},\n\nIci la compagnie ${companyName}.\n\nCeci est un rappel que le solde de votre compte de ${amount.toFixed(2)}$ demeure impayé.\n\nContactez-nous au ${companyPhone} pour trouver une solution ensemble.\n\nCordialement,\n${companyName}`;
+      return `Bonjour ${firstName},\n\nIci ${companyName}.\n\nLe solde de votre compte de ${amount.toFixed(2)}$ demeure impayé.\n\nRépondez à ce courriel pour discuter d'un arrangement de paiement.\n\nCordialement,\n${companyName}`;
     }
     if (channel === 'sms') {
-      return `Hi ${firstName},\nThis is ${companyName}.\nYour account balance of $${amount.toFixed(2)} remains unpaid.\nContact us to find a solution together.\n${companyName}`;
+      return `Hi ${firstName},\nThis is ${companyName}.\nYour account balance of $${amount.toFixed(2)} remains unpaid.\nReply to this message to discuss a payment arrangement.\n${companyName}`;
     }
-    return `Hi ${firstName},\n\nThis is ${companyName}. We are reaching out regarding your outstanding balance of $${amount.toFixed(2)}.\n\nWe'd like to work with you to find a resolution. Please contact us at ${companyPhone} to discuss your options.\n\nSincerely,\n${companyName}`;
+    return `Hi ${firstName},\n\nThis is ${companyName}. Your outstanding balance of $${amount.toFixed(2)} remains unpaid.\n\nReply to this email to discuss a payment arrangement.\n\nSincerely,\n${companyName}`;
   }
 }
 
