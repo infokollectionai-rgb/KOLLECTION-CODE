@@ -105,7 +105,7 @@ async function generatePaymentLink(debtor, companyId) {
   }
 }
 
-async function generateAiMessage(debtor, company, channel, paymentLinkUrl) {
+async function generateAiMessage(debtor, company, channel) {
   const stage       = getStage(debtor.days_overdue ?? 0, debtor.broken_promise_count ?? 0);
   const amount      = debtor.amount ?? 0;
   const floor       = debtor.floor_amount ?? amount * 0.3;
@@ -123,7 +123,10 @@ async function generateAiMessage(debtor, company, channel, paymentLinkUrl) {
 
   const channelNote = channel === 'sms'
     ? 'Keep the message SHORT — under 320 characters total. No greetings like "Dear". Be direct.'
-    : 'Write a professional email body with a clear call to action and the payment link as a button/link.';
+    : 'Write a professional email body with a clear call to action.';
+
+  const ctaFr = `Contactez-nous pour trouver une solution ensemble.`;
+  const ctaEn = `Contact us to find a solution together.`;
 
   const prompt = `You are a professional account resolution specialist for ${companyName}.
 
@@ -133,9 +136,6 @@ LANGUAGE: ${lang === 'fr' ? 'FRENCH (formal/vouvoiement)' : 'ENGLISH'}
 COMPANY NAME: ${companyName}
 COMPANY PHONE: ${companyPhone}
 AMOUNT OWED: $${amount.toFixed(2)}
-OFFER AMOUNT: $${range.offer.toFixed(2)} (${Math.round((1 - range.offer / amount) * 100)}% discount)
-MINIMUM ACCEPTABLE: $${range.min.toFixed(2)} (DO NOT reveal to debtor)
-PAYMENT LINK: ${paymentLinkUrl ?? 'not available'}
 CHANNEL: ${channel}
 INTERNAL STAGE: ${stage} (DO NOT mention stage/tier/layer to debtor)
 
@@ -144,22 +144,21 @@ ${channelNote}
 CRITICAL RULES:
 - NEVER mention "Stage", "Tier", "Layer", or any internal system terminology to the debtor
 - NEVER invent phone numbers — the ONLY phone number you may include is: ${companyPhone}
-- ALWAYS include the payment link URL if one is provided
+- NEVER include a payment link in outreach messages. Payment links are ONLY sent after the debtor agrees to a specific amount or payment plan during a conversation.
+- End the message with a friendly call-to-action: "${lang === 'fr' ? ctaFr : ctaEn}"
 - Use the exact language detected (French or English), never mix
 - Sign the message with the company name only
 
-${lang === 'fr' ? `FRENCH SMS TEMPLATE (follow this style closely for Stage 1 first contact):
+${lang === 'fr' ? `FRENCH SMS TEMPLATE (follow this style closely):
 "Bonjour ${firstName},
 Ici la compagnie ${companyName}.
 Ceci est un rappel que le solde de votre compte de ${amount.toFixed(2)}$ demeure impayé.
-Veuillez organiser un paiement de ce compte aujourd'hui ou contactez-nous pour convenir d'un accord de paiement.
-Lien de paiement: ${paymentLinkUrl ?? '[lien]'}
-${companyName}"` : `ENGLISH SMS TEMPLATE (follow this style closely for Stage 1 first contact):
+Contactez-nous pour trouver une solution ensemble.
+${companyName}"` : `ENGLISH SMS TEMPLATE (follow this style closely):
 "Hi ${firstName},
 This is ${companyName}.
 This is a reminder that your account balance of $${amount.toFixed(2)} remains unpaid.
-Please arrange payment today or contact us to set up a payment arrangement.
-Payment link: ${paymentLinkUrl ?? '[link]'}
+Contact us to find a solution together.
 ${companyName}"`}
 
 Generate a single ${channel} message. Output ONLY the message text — no JSON, no quotes, no explanation.`;
@@ -173,17 +172,17 @@ Generate a single ${channel} message. Output ONLY the message text — no JSON, 
     return (response.content[0]?.text ?? '').trim();
   } catch (err) {
     console.error('[worker] AI message generation failed:', err.message);
-    // Fallback static messages
+    // Fallback static messages — no payment links
     if (lang === 'fr') {
       if (channel === 'sms') {
-        return `Bonjour ${firstName},\nIci la compagnie ${companyName}.\nCeci est un rappel que le solde de votre compte de ${amount.toFixed(2)}$ demeure impayé.\nVeuillez organiser un paiement de ce compte aujourd'hui ou contactez-nous pour convenir d'un accord de paiement.${paymentLinkUrl ? `\nLien de paiement: ${paymentLinkUrl}` : ''}\n${companyName}`;
+        return `Bonjour ${firstName},\nIci la compagnie ${companyName}.\nCeci est un rappel que le solde de votre compte de ${amount.toFixed(2)}$ demeure impayé.\nContactez-nous pour trouver une solution ensemble.\n${companyName}`;
       }
-      return `Bonjour ${firstName},\n\nIci la compagnie ${companyName}.\n\nCeci est un rappel que le solde de votre compte de ${amount.toFixed(2)}$ demeure impayé.\n\nVeuillez organiser un paiement de ce compte aujourd'hui ou contactez-nous au ${companyPhone} pour convenir d'un accord de paiement.\n${paymentLinkUrl ? `\nLien de paiement: ${paymentLinkUrl}\n` : ''}\nCordialement,\n${companyName}`;
+      return `Bonjour ${firstName},\n\nIci la compagnie ${companyName}.\n\nCeci est un rappel que le solde de votre compte de ${amount.toFixed(2)}$ demeure impayé.\n\nContactez-nous au ${companyPhone} pour trouver une solution ensemble.\n\nCordialement,\n${companyName}`;
     }
     if (channel === 'sms') {
-      return `Hi ${firstName},\nThis is ${companyName}.\nYour account balance of $${amount.toFixed(2)} remains unpaid.\nPlease arrange payment today or contact us to discuss options.${paymentLinkUrl ? `\nPayment link: ${paymentLinkUrl}` : ''}\n${companyName}`;
+      return `Hi ${firstName},\nThis is ${companyName}.\nYour account balance of $${amount.toFixed(2)} remains unpaid.\nContact us to find a solution together.\n${companyName}`;
     }
-    return `Hi ${firstName},\n\nThis is ${companyName}. We are reaching out regarding your outstanding balance of $${amount.toFixed(2)}.\n\nWe'd like to work with you to find a resolution. Please contact us at ${companyPhone} to discuss your options.\n${paymentLinkUrl ? `\nPay now: ${paymentLinkUrl}\n` : ''}\nSincerely,\n${companyName}`;
+    return `Hi ${firstName},\n\nThis is ${companyName}. We are reaching out regarding your outstanding balance of $${amount.toFixed(2)}.\n\nWe'd like to work with you to find a resolution. Please contact us at ${companyPhone} to discuss your options.\n\nSincerely,\n${companyName}`;
   }
 }
 
@@ -359,21 +358,17 @@ async function processScheduledContacts() {
 
       const company = companyCache[contact.company_id];
 
-      // 5. Generate payment link BEFORE AI message generation
-      let paymentLinkUrl = null;
-      if (contact.channel === 'sms' || contact.channel === 'email') {
-        paymentLinkUrl = await generatePaymentLink(debtor, contact.company_id);
-      }
-
       // 6. Generate message and send
+      // Payment links are NOT generated for outreach messages.
+      // They are only created when the debtor agrees to an amount during conversation.
       let result;
 
       if (contact.channel === 'sms') {
-        const message = contact.message_template ?? await generateAiMessage(debtor, company, 'sms', paymentLinkUrl);
+        const message = contact.message_template ?? await generateAiMessage(debtor, company, 'sms');
         result = await sendSms(debtor, company, message);
 
       } else if (contact.channel === 'email') {
-        const message = contact.message_template ?? await generateAiMessage(debtor, company, 'email', paymentLinkUrl);
+        const message = contact.message_template ?? await generateAiMessage(debtor, company, 'email');
         result = await sendEmail(debtor, company, message);
 
       } else if (contact.channel === 'call') {
@@ -397,7 +392,7 @@ async function processScheduledContacts() {
         channel:    contact.channel,
         direction:  'outbound',
         status:     'sent',
-        metadata:   { ...result, layer: contact.layer, worker: true, paymentLink: paymentLinkUrl },
+        metadata:   { ...result, layer: contact.layer, worker: true },
       });
 
       console.log(`[worker] Sent ${contact.channel} to debtor ${debtor.id}`);
