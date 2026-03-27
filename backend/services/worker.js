@@ -106,80 +106,72 @@ async function generatePaymentLink(debtor, companyId) {
 }
 
 async function generateAiMessage(debtor, company, channel) {
-  const stage       = getStage(debtor.days_overdue ?? 0, debtor.broken_promise_count ?? 0);
   const amount      = debtor.amount ?? 0;
-  const floor       = debtor.floor_amount ?? amount * 0.3;
   const companyName = company.company_name ?? 'Collections';
-  const companyPhone = company.business_phone ?? process.env.TWILIO_DEFAULT_NUMBER ?? '+14389050764';
+  const agentName   = company.voice_agent_name ?? 'Alex';
   const firstName   = debtor.first_name ?? debtor.name?.split(' ')[0] ?? 'Client';
+  const lastName    = debtor.name?.split(' ').slice(1).join(' ') ?? '';
   const lang        = detectLanguage(debtor.phone);
 
-  const RANGES = {
-    1: { offer: amount * 0.70, min: amount * 0.50 },
-    2: { offer: amount * 0.50, min: amount * 0.40 },
-    3: { offer: amount * 0.40, min: floor },
-  };
-  const range = RANGES[stage];
+  const debtorGreeting = lastName
+    ? (lang === 'fr' ? `M./Mme ${lastName}` : `Mr./Mrs. ${lastName}`)
+    : firstName;
 
-  const channelNote = channel === 'sms'
-    ? 'You are having a conversation via SMS. Keep messages SHORT (under 320 characters when possible). Be direct. Offer specific numbers. Do not tell the debtor to contact you — you ARE contacting them right now.'
-    : 'Write a professional email body. Be direct. Offer specific numbers. You are reaching out — do not tell them to contact you.';
+  const systemPrompt = lang === 'fr'
+    ? 'Tu es un spécialiste de recouvrement. Tu écris des SMS conversationnels et courts. Tu ne parles jamais comme un robot corporatif.'
+    : 'You are a debt recovery specialist. You write short, conversational SMS messages. You never sound like a corporate robot.';
 
-  const prompt = `You are a professional account resolution specialist for ${companyName}. You are reaching out to the debtor directly — YOU are the contact.
+  let userPrompt;
 
-DEBTOR FIRST NAME: ${firstName}
-DEBTOR PHONE: ${debtor.phone ?? 'unknown'}
-LANGUAGE: ${lang === 'fr' ? 'FRENCH (formal/vouvoiement)' : 'ENGLISH'}
-COMPANY NAME: ${companyName}
-AMOUNT OWED: $${amount.toFixed(2)}
-CHANNEL: ${channel}
-INTERNAL STAGE: ${stage} (DO NOT mention stage/tier/layer to debtor)
+  if (lang === 'fr') {
+    userPrompt = `Tu es ${agentName} de ${companyName}. Tu contactes ${firstName} ${debtorGreeting} par ${channel === 'sms' ? 'SMS' : 'courriel'} pour la première fois. Son solde impayé est de ${amount.toFixed(2)}$. Son numéro est ${debtor.phone ?? 'inconnu'}.
 
-${channelNote}
+Écris UN SEUL ${channel === 'sms' ? 'SMS' : 'courriel'} de premier contact. Le message DOIT:
+- Commencer par: Bonjour ${debtorGreeting}, ici ${agentName} de ${companyName}.
+- Mentionner le solde exact de ${amount.toFixed(2)}$
+- Offrir deux options: entente de paiement flexible OU rabais pour fermer le dossier
+- Finir par quelque chose de conversationnel comme "Faites-moi signe!"
+- Être entièrement en FRANÇAIS
+- Faire MOINS de 300 caractères
+- Ne JAMAIS dire "contactez-nous", "répondez à ce message", "Reply YES", "Répondez OUI"
 
-CRITICAL RULES:
-- NEVER mention "Stage", "Tier", "Layer", or any internal system terminology to the debtor
-- NEVER invent phone numbers
-- NEVER include a payment link in outreach messages. Payment links are ONLY sent after the debtor agrees to a specific amount or payment plan during a conversation.
-- NEVER say "contact us", "call us", "reach out to us", or any variation. YOU are contacting THEM. Instead, ask them to reply to this message.
-- Once you start in a language, NEVER switch. The debtor may reply in a different language — ignore that and continue in the language you started with based on their phone area code.
-- Use the exact language detected (French or English), never mix
-- Sign the message with the company name only
+Écris SEULEMENT le ${channel === 'sms' ? 'SMS' : 'courriel'}, rien d'autre.`;
+  } else {
+    userPrompt = `You are ${agentName} from ${companyName}. You are contacting ${firstName} ${debtorGreeting} by ${channel === 'sms' ? 'SMS' : 'email'} for the first time. Their unpaid balance is $${amount.toFixed(2)}. Their number is ${debtor.phone ?? 'unknown'}.
 
-${lang === 'fr' ? `FRENCH SMS TEMPLATE (follow this style closely):
-"Bonjour ${firstName},
-Ici ${companyName}.
-Le solde de votre compte de ${amount.toFixed(2)}$ demeure impayé.
-Répondez à ce message pour discuter d'un arrangement de paiement.
-${companyName}"` : `ENGLISH SMS TEMPLATE (follow this style closely):
-"Hi ${firstName},
-This is ${companyName}.
-Your account balance of $${amount.toFixed(2)} remains unpaid.
-Reply to this message to discuss a payment arrangement.
-${companyName}"`}
+Write ONE ${channel === 'sms' ? 'SMS' : 'email'} first contact message. The message MUST:
+- Start with: Hi ${debtorGreeting}, this is ${agentName} from ${companyName}.
+- Mention the exact balance of $${amount.toFixed(2)}
+- Offer two options: flexible payment plan OR discount to close the account
+- End with something conversational like "Let me know!"
+- Be entirely in ENGLISH
+- Be UNDER 300 characters
+- NEVER say "contact us", "call us", "Reply YES", "opt out"
 
-Generate a single ${channel} message. Output ONLY the message text — no JSON, no quotes, no explanation.`;
+Write ONLY the ${channel === 'sms' ? 'SMS' : 'email'}, nothing else.`;
+  }
 
   try {
     const response = await anthropic.messages.create({
       model:      'claude-sonnet-4-20250514',
-      max_tokens: 400,
-      messages:   [{ role: 'user', content: prompt }],
+      max_tokens: 300,
+      system:     systemPrompt,
+      messages:   [{ role: 'user', content: userPrompt }],
     });
     return (response.content[0]?.text ?? '').trim();
   } catch (err) {
     console.error('[worker] AI message generation failed:', err.message);
-    // Fallback static messages
+    // Fallback static messages — conversational style
     if (lang === 'fr') {
       if (channel === 'sms') {
-        return `Bonjour ${firstName},\nIci ${companyName}.\nLe solde de votre compte de ${amount.toFixed(2)}$ demeure impayé.\nRépondez à ce message pour discuter d'un arrangement de paiement.\n${companyName}`;
+        return `Bonjour ${debtorGreeting}, ici ${agentName} de ${companyName}. Je vous contacte par rapport à votre solde impayé de ${amount.toFixed(2)}$. Entente flexible ou rabais pour fermer le dossier? Faites-moi signe!`;
       }
-      return `Bonjour ${firstName},\n\nIci ${companyName}.\n\nLe solde de votre compte de ${amount.toFixed(2)}$ demeure impayé.\n\nRépondez à ce courriel pour discuter d'un arrangement de paiement.\n\nCordialement,\n${companyName}`;
+      return `Bonjour ${debtorGreeting},\n\nIci ${agentName} de ${companyName}. Je vous contacte par rapport à votre solde impayé de ${amount.toFixed(2)}$.\n\nOn aimerait trouver une solution avec vous. Entente flexible ou rabais pour fermer le dossier?\n\nFaites-moi signe!\n\n${agentName}\n${companyName}`;
     }
     if (channel === 'sms') {
-      return `Hi ${firstName},\nThis is ${companyName}.\nYour account balance of $${amount.toFixed(2)} remains unpaid.\nReply to this message to discuss a payment arrangement.\n${companyName}`;
+      return `Hi ${debtorGreeting}, this is ${agentName} from ${companyName}. I'm reaching out about your unpaid balance of $${amount.toFixed(2)}. Flexible payment plan or settle at a discount? Let me know!`;
     }
-    return `Hi ${firstName},\n\nThis is ${companyName}. Your outstanding balance of $${amount.toFixed(2)} remains unpaid.\n\nReply to this email to discuss a payment arrangement.\n\nSincerely,\n${companyName}`;
+    return `Hi ${debtorGreeting},\n\nThis is ${agentName} from ${companyName}. I'm reaching out about your unpaid balance of $${amount.toFixed(2)}.\n\nWould you prefer a flexible payment plan or settle at a discount?\n\nLet me know!\n\n${agentName}\n${companyName}`;
   }
 }
 
@@ -334,7 +326,7 @@ async function processScheduledContacts() {
       if (!companyCache[contact.company_id]) {
         const { data: company, error: companyError } = await supabase
           .from('client_companies')
-          .select('id, company_name, business_phone, twilio_account_sid, twilio_auth_token, sendgrid_api_key, sendgrid_from_email, sendgrid_from_name')
+          .select('id, company_name, business_phone, voice_agent_name, twilio_account_sid, twilio_auth_token, sendgrid_api_key, sendgrid_from_email, sendgrid_from_name')
           .eq('id', contact.company_id)
           .single();
 
@@ -361,11 +353,11 @@ async function processScheduledContacts() {
       let result;
 
       if (contact.channel === 'sms') {
-        const message = contact.message_template ?? await generateAiMessage(debtor, company, 'sms');
+        const message = await generateAiMessage(debtor, company, 'sms');
         result = await sendSms(debtor, company, message);
 
       } else if (contact.channel === 'email') {
-        const message = contact.message_template ?? await generateAiMessage(debtor, company, 'email');
+        const message = await generateAiMessage(debtor, company, 'email');
         result = await sendEmail(debtor, company, message);
 
       } else if (contact.channel === 'call') {
