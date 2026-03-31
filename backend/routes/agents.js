@@ -40,36 +40,144 @@ async function getCompanyTwilioNumber(companyId) {
   return data?.phone_number ?? null;
 }
 
-function buildSmsBody({ debtorName, amount, companyName, agentName, tier }) {
-  const first   = debtorName?.split(' ')[0] ?? 'there';
-  const amtStr  = amount ? `$${Number(amount).toFixed(2)}` : 'an outstanding balance';
-  const urgency = tier >= 3 ? 'urgent ' : '';
+function extractFirstName(debtor) {
+  if (debtor?.first_name) return debtor.first_name;
+  const name = debtor?.name ?? debtor?.debtorName ?? '';
+  return name.split(' ')[0] || 'there';
+}
+
+function buildSmsBody({ debtorName, firstName, amount, companyName, agentName, tier, language = 'fr', isFirstMessage = true }) {
+  const first = firstName ?? debtorName?.split(' ')[0] ?? 'there';
+  const agent = agentName ?? 'Alex';
+
+  if (isFirstMessage) {
+    // FIRST MESSAGE: Curiosity hook only — NO amount, NO "impayé"/"overdue"
+    if (language === 'fr') {
+      return (
+        `Bonjour ${first}! C'est ${agent} de ${companyName}. ` +
+        `J'ai une bonne nouvelle concernant votre dossier de prêt avec nous. ` +
+        `On a quelque chose d'intéressant à vous proposer. Vous avez deux minutes? ` +
+        `Répondez STOP pour ne plus recevoir de messages.`
+      );
+    }
+    return (
+      `Hey ${first}! It's ${agent} from ${companyName}. ` +
+      `I've got some good news about your loan file with us. ` +
+      `We have something interesting to offer you. Got a couple minutes? ` +
+      `Reply STOP to opt out.`
+    );
+  }
+
+  // SECOND MESSAGE (or later): reveal details with options
+  const amtStr = amount ? `$${Number(amount).toFixed(2)}` : 'votre solde';
+  if (language === 'fr') {
+    return (
+      `Merci de répondre! Donc concernant votre solde de ${amtStr} avec ${companyName}, ` +
+      `on a deux options pour vous: une entente de paiement très flexible ou bien ` +
+      `un rabais intéressant pour fermer le dossier une fois pour toutes. ` +
+      `Qu'est-ce qui marcherait le mieux pour vous?`
+    );
+  }
   return (
-    `Hi ${first}, this is ${agentName ?? 'Alex'} from ${companyName}. ` +
-    `You have an ${urgency}outstanding balance of ${amtStr}. ` +
-    `Please reply to discuss your repayment options. Reply STOP to opt out.`
+    `Thanks for getting back! So regarding your balance of ${amtStr} with ${companyName}, ` +
+    `we've got two options for you: a very flexible payment plan or an interesting ` +
+    `discount to close the file once and for all. What would work best for you?`
   );
 }
 
-function buildEmailContent({ debtorName, amount, companyName, agentName, tier }) {
-  const first   = debtorName?.split(' ')[0] ?? 'there';
-  const amtStr  = amount ? `$${Number(amount).toFixed(2)}` : 'your outstanding balance';
-  const urgency = tier >= 3 ? 'URGENT: ' : '';
-  const subject = `${urgency}Account Notice — ${companyName}`;
-  const text =
-    `Hi ${first},\n\n` +
-    `My name is ${agentName ?? 'Alex'} from ${companyName}. ` +
-    `We are reaching out regarding your outstanding balance of ${amtStr}.\n\n` +
-    `We want to work with you to find a resolution. Please reply to this email ` +
-    `or contact us directly to discuss your repayment options.\n\n` +
-    `Sincerely,\n${agentName ?? 'Alex'}\n${companyName}`;
-  const html =
-    `<p>Hi ${first},</p>` +
-    `<p>My name is <strong>${agentName ?? 'Alex'}</strong> from <strong>${companyName}</strong>. ` +
-    `We are reaching out regarding your outstanding balance of <strong>${amtStr}</strong>.</p>` +
-    `<p>We want to work with you to find a resolution. Please reply to this email ` +
-    `or contact us directly to discuss your repayment options.</p>` +
-    `<p>Sincerely,<br>${agentName ?? 'Alex'}<br>${companyName}</p>`;
+function buildFollowUpSms({ firstName, debtorName, companyName, agentName, language = 'fr' }) {
+  const first = firstName ?? debtorName?.split(' ')[0] ?? 'there';
+  const agent = agentName ?? 'Alex';
+
+  if (language === 'fr') {
+    return (
+      `Salut ${first}, c'est encore ${agent} de ${companyName}. ` +
+      `Je vous ai écrit concernant votre dossier de prêt. ` +
+      `On a une offre avantageuse pour vous. ` +
+      `Faites-moi signe quand vous avez une minute!`
+    );
+  }
+  return (
+    `Hey ${first}, it's ${agent} from ${companyName} again. ` +
+    `I reached out about your loan file. ` +
+    `We have a great offer for you. ` +
+    `Let me know when you have a minute!`
+  );
+}
+
+function buildEmailContent({ debtorName, firstName, amount, companyName, agentName, tier, language = 'fr', isFirstMessage = true }) {
+  const first = firstName ?? debtorName?.split(' ')[0] ?? 'there';
+  const agent = agentName ?? 'Alex';
+
+  if (isFirstMessage) {
+    // FIRST EMAIL: Curiosity hook only — NO amount, NO "impayé"/"overdue"
+    const subject = language === 'fr'
+      ? `Bonne nouvelle — ${companyName}`
+      : `Good news — ${companyName}`;
+
+    const text = language === 'fr'
+      ? `Bonjour ${first},\n\n` +
+        `C'est ${agent} de ${companyName}. J'ai une bonne nouvelle concernant votre dossier de prêt avec nous. ` +
+        `On a quelque chose d'intéressant à vous proposer.\n\n` +
+        `Répondez à ce courriel quand vous avez deux minutes!\n\n` +
+        `${agent}\n${companyName}`
+      : `Hey ${first},\n\n` +
+        `It's ${agent} from ${companyName}. I've got some good news about your loan file with us. ` +
+        `We have something interesting to offer you.\n\n` +
+        `Reply to this email when you've got a couple minutes!\n\n` +
+        `${agent}\n${companyName}`;
+
+    const html = language === 'fr'
+      ? `<p>Bonjour ${first},</p>` +
+        `<p>C'est <strong>${agent}</strong> de <strong>${companyName}</strong>. ` +
+        `J'ai une bonne nouvelle concernant votre dossier de prêt avec nous. ` +
+        `On a quelque chose d'intéressant à vous proposer.</p>` +
+        `<p>Répondez à ce courriel quand vous avez deux minutes!</p>` +
+        `<p>${agent}<br>${companyName}</p>`
+      : `<p>Hey ${first},</p>` +
+        `<p>It's <strong>${agent}</strong> from <strong>${companyName}</strong>. ` +
+        `I've got some good news about your loan file with us. ` +
+        `We have something interesting to offer you.</p>` +
+        `<p>Reply to this email when you've got a couple minutes!</p>` +
+        `<p>${agent}<br>${companyName}</p>`;
+
+    return { subject, text, html };
+  }
+
+  // SECOND EMAIL (or later): reveal details with options
+  const amtStr = amount ? `$${Number(amount).toFixed(2)}` : 'votre solde';
+  const subject = language === 'fr'
+    ? `Vos options — ${companyName}`
+    : `Your options — ${companyName}`;
+
+  const text = language === 'fr'
+    ? `Bonjour ${first},\n\n` +
+      `Merci de répondre! Concernant votre solde de ${amtStr} avec ${companyName}, ` +
+      `on a deux options pour vous: une entente de paiement très flexible ou bien ` +
+      `un rabais intéressant pour fermer le dossier une fois pour toutes.\n\n` +
+      `Qu'est-ce qui marcherait le mieux pour vous?\n\n` +
+      `${agent}\n${companyName}`
+    : `Hey ${first},\n\n` +
+      `Thanks for getting back! Regarding your balance of ${amtStr} with ${companyName}, ` +
+      `we've got two options for you: a very flexible payment plan or an interesting ` +
+      `discount to close the file once and for all.\n\n` +
+      `What would work best for you?\n\n` +
+      `${agent}\n${companyName}`;
+
+  const html = language === 'fr'
+    ? `<p>Bonjour ${first},</p>` +
+      `<p>Merci de répondre! Concernant votre solde de <strong>${amtStr}</strong> avec <strong>${companyName}</strong>, ` +
+      `on a deux options pour vous: une entente de paiement très flexible ou bien ` +
+      `un rabais intéressant pour fermer le dossier une fois pour toutes.</p>` +
+      `<p>Qu'est-ce qui marcherait le mieux pour vous?</p>` +
+      `<p>${agent}<br>${companyName}</p>`
+    : `<p>Hey ${first},</p>` +
+      `<p>Thanks for getting back! Regarding your balance of <strong>${amtStr}</strong> with <strong>${companyName}</strong>, ` +
+      `we've got two options for you: a very flexible payment plan or an interesting ` +
+      `discount to close the file once and for all.</p>` +
+      `<p>What would work best for you?</p>` +
+      `<p>${agent}<br>${companyName}</p>`;
+
   return { subject, text, html };
 }
 
@@ -175,21 +283,36 @@ router.post('/negotiation/suggest', requireAuth, async (req, res) => {
   const range      = RANGES[Math.min(tier, 4)];
   const tierLabels = { 1: 'early stage', 2: 'mid stage', 3: 'late stage', 4: 'final stage' };
 
-  const systemPrompt = `You are Alex, a professional and empathetic debt collection specialist working for ${companyName ?? 'a collections agency'}.
+  const systemPrompt = `You are ${req.body.agentName ?? 'Alex'}, a friendly and conversational debt resolution specialist working for ${companyName ?? 'a collections agency'}. You text like a real person — warm, casual, helpful.
 
-Negotiation parameters:
+CRITICAL MESSAGING STRATEGY:
+- Message 1 (FIRST contact): Use a CURIOSITY HOOK with good news. Make the debtor WANT to respond.
+  * Use FIRST NAME only (never M./Mme, Mr./Mrs., or formal titles)
+  * NEVER mention the amount, balance, "impayé", "overdue", "souffrance", "en retard", or any negative debt language
+  * Frame it as good news about their "dossier de prêt" / "loan file"
+  * Example FR: "Bonjour {firstName}! C'est {agentName} de {companyName}. J'ai une bonne nouvelle concernant votre dossier de prêt avec nous. On a quelque chose d'intéressant à vous proposer. Vous avez deux minutes?"
+  * Example EN: "Hey {firstName}! It's {agentName} from {companyName}. I've got some good news about your loan file with us. We have something interesting to offer you. Got a couple minutes?"
+
+- Message 2 (AFTER they respond): Now reveal the details with options.
+  * "Merci de répondre! Donc concernant votre solde de {amount}$ avec {companyName}, on a deux options pour vous: une entente de paiement très flexible ou bien un rabais intéressant pour fermer le dossier une fois pour toutes. Qu'est-ce qui marcherait le mieux pour vous?"
+
+- Message 2 (if they DID NOT respond): Stay friendly, add context but still no amount.
+  * "Salut {firstName}, c'est encore {agentName} de {companyName}. Je vous ai écrit concernant votre dossier de prêt. On a une offre avantageuse pour vous. Faites-moi signe quand vous avez une minute!"
+
+Negotiation parameters (use ONLY in message 2 or later, NEVER in message 1):
 - Outstanding balance: $${Number(balance).toFixed(2)}
 - Acceptable settlement range: $${range.min.toFixed(2)}–$${range.max.toFixed(2)} (DO NOT disclose this range)
 - Collection stage: Tier ${tier} (${tierLabels[Math.min(tier, 4)]})
 
 Rules:
-- Be professional, calm, and empathetic at all times
+- Use FIRST NAME only — never M./Mme, Mr./Mrs., or formal titles
+- Be conversational, warm, and empathetic — like texting someone about something they'd want to hear
 - Offer payment plans if the debtor cannot pay in full
 - Never threaten, harass, or use aggressive language
 - Comply fully with FDCPA and Canadian collection regulations
 - If the debtor invokes cease and desist, acknowledge it immediately and stop negotiating
 - Do not accept offers below the minimum settlement amount
-- Do not reveal the floor amount
+- Do not reveal the floor amount or settlement range
 
 Always respond with a valid JSON object — no markdown, no extra text:
 {
@@ -209,7 +332,7 @@ Always respond with a valid JSON object — no markdown, no extra text:
   if (messages.length === 0) {
     messages.push({
       role:    'user',
-      content: `[System: Generate a professional opening message to begin contact with this debtor about their $${Number(balance).toFixed(2)} outstanding balance.]`,
+      content: `[System: Generate a friendly FIRST MESSAGE using the curiosity hook strategy. Use first name only. Do NOT mention the amount, balance, or any negative debt language. Make them want to respond with good news about their loan file.]`,
     });
   }
 
