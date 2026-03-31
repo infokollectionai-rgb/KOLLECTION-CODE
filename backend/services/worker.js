@@ -1,371 +1,418 @@
 /**
- * Worker service — processes scheduled contacts from the queue.
+ * Cron worker — processes scheduled_contacts every 15 minutes.
  *
- * Picks up due items from `scheduled_contacts`, sends via the appropriate
- * channel (SMS / email / call), and updates status.
+ * Called via GET /cron/process (Railway cron or n8n).
+ * Picks up pending contacts, sends SMS/email/call, updates status.
  */
 
-const Anthropic  = require('@anthropic-ai/sdk');
-const twilio     = require('twilio');
-const sgMail     = require('@sendgrid/mail');
+const Anthropic = require('@anthropic-ai/sdk');
+const Stripe    = require('stripe');
+const twilio    = require('twilio');
+const sgMail    = require('@sendgrid/mail');
 
-const supabase              = require('../database/supabase');
-const { decrypt }           = require('../utils/encryption');
-const { checkContactAllowed } = require('../middleware/compliance');
+const supabase   = require('../database/supabase');
+const { decrypt } = require('../utils/encryption');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const stripe    = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+const BATCH_SIZE = 50;
+
+const FRENCH_AREA_CODES = ['514', '438', '450', '579', '418', '581', '819', '873'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function extractFirstName(debtor) {
-  if (debtor?.first_name) return debtor.first_name;
-  const name = debtor?.name ?? '';
-  return name.split(' ')[0] || 'there';
-}
-
-const QUEBEC_AREA_CODES = ['514', '438', '450', '579', '418', '581', '819', '873'];
-
-function isQuebecNumber(phone) {
-  if (!phone) return true; // Default to French
+function detectLanguage(phone) {
+  if (!phone) return 'en';
+  // Strip +1 prefix to get area code
   const digits = phone.replace(/\D/g, '');
-  // Handle +1XXXXXXXXXX or 1XXXXXXXXXX or XXXXXXXXXX
-  const areaCode = digits.length === 11 && digits[0] === '1'
-    ? digits.substring(1, 4)
-    : digits.substring(0, 3);
-  return QUEBEC_AREA_CODES.includes(areaCode);
+  const areaCode = digits.startsWith('1') ? digits.slice(1, 4) : digits.slice(0, 3);
+  return FRENCH_AREA_CODES.includes(areaCode) ? 'fr' : 'en';
 }
 
-function buildFirstContactMessage(firstName, agentName, companyName, phone) {
-  if (isQuebecNumber(phone)) {
-    return `Bonjour ${firstName}! C'est ${agentName} de ${companyName}. J'ai une bonne nouvelle concernant votre dossier de prêt avec nous. On a quelque chose d'intéressant à vous proposer. Vous avez deux minutes?`;
-  }
-  return `Hey ${firstName}! It's ${agentName} from ${companyName}. I've got some good news regarding your loan file with us. We have something interesting to offer you. Got a couple minutes?`;
+function getStage(daysOverdue, brokenPromiseCount) {
+  if (brokenPromiseCount >= 2 || daysOverdue >= 60) return 3;
+  if (daysOverdue >= 14) return 2;
+  return 1;
 }
 
-function postProcessMessage(text, isFirst) {
-  let cleaned = text;
-  // Remove formal titles
-  cleaned = cleaned.replace(/\bM\.\s*/g, '');
-  cleaned = cleaned.replace(/\bMme\s*/g, '');
-  cleaned = cleaned.replace(/\bMr\.\s*/g, '');
-  cleaned = cleaned.replace(/\bMrs\.\s*/g, '');
-  cleaned = cleaned.replace(/\bMs\.\s*/g, '');
-  // Clean up double spaces left behind
-  cleaned = cleaned.replace(/  +/g, ' ').trim();
+async function generatePaymentLink(debtor, companyId) {
+  try {
+    const amount     = debtor.amount ?? 0;
+    if (amount <= 0) return null;
 
-  if (isFirst) {
-    // Remove dollar amounts: $500, $500.00, 500$, 500.00$
-    cleaned = cleaned.replace(/\$\s?\d[\d\s,.]*\d*/g, '');
-    cleaned = cleaned.replace(/\d[\d\s,.]*\d*\s?\$/g, '');
-    // Remove stray "de  avec" left after amount removal
-    cleaned = cleaned.replace(/\bde\s+avec\b/g, 'avec');
-    cleaned = cleaned.replace(/  +/g, ' ').trim();
-  }
+    const amountCents = Math.round(amount * 100);
+    const debtorName  = debtor.name ?? debtor.first_name ?? 'Client';
 
-  return cleaned;
-}
+    // Check for connected account
+    const { data: company } = await supabase
+      .from('client_companies')
+      .select('stripe_account_id')
+      .eq('id', companyId)
+      .single();
 
-async function getCompanyCreds(companyId) {
-  const { data, error } = await supabase
-    .from('client_companies')
-    .select('*')
-    .eq('id', companyId)
-    .single();
-  if (error || !data) throw new Error('Company not found');
-  return {
-    ...data,
-    twilio_auth_token: data.twilio_auth_token ? decrypt(data.twilio_auth_token) : null,
-    sendgrid_api_key:  data.sendgrid_api_key  ? decrypt(data.sendgrid_api_key)  : null,
-  };
-}
+    const stripeOpts = company?.stripe_account_id
+      ? { stripeAccount: company.stripe_account_id }
+      : undefined;
 
-async function getCompanyTwilioNumber(companyId) {
-  const { data } = await supabase
-    .from('twilio_numbers')
-    .select('phone_number')
-    .eq('company_id', companyId)
-    .eq('active', true)
-    .limit(1)
-    .single();
-  return data?.phone_number ?? null;
-}
+    const product = await stripe.products.create({
+      name:     `Payment — ${debtorName}`,
+      metadata: { debtor_id: debtor.id, debtor_name: debtorName },
+    }, stripeOpts);
 
-// ─── Determine if this is the first message to a debtor ──────────────────────
+    const price = await stripe.prices.create({
+      product:     product.id,
+      unit_amount: amountCents,
+      currency:    'cad',
+    }, stripeOpts);
 
-async function isFirstContact(debtorId, companyId) {
-  const { count } = await supabase
-    .from('contact_attempts')
-    .select('id', { count: 'exact', head: true })
-    .eq('debtor_id', debtorId)
-    .eq('company_id', companyId)
-    .eq('direction', 'outbound');
-  return (count ?? 0) === 0;
-}
+    const platformFeeCents = Math.round(amountCents * 0.50);
 
-// ─── Check if debtor responded to the first message ─────────────────────────
+    const linkParams = {
+      line_items: [{ price: price.id, quantity: 1 }],
+      metadata:   { debtor_id: debtor.id, company_id: companyId },
+      after_completion: {
+        type: 'hosted_confirmation',
+        hosted_confirmation: {
+          custom_message: 'Thank you. Your payment has been received and your account updated.',
+        },
+      },
+    };
 
-async function debtorHasResponded(debtorId, companyId) {
-  const { count } = await supabase
-    .from('contact_attempts')
-    .select('id', { count: 'exact', head: true })
-    .eq('debtor_id', debtorId)
-    .eq('company_id', companyId)
-    .eq('direction', 'inbound');
-  return (count ?? 0) > 0;
-}
-
-// ─── Build the AI system prompt for the worker ──────────────────────────────
-
-function buildWorkerPrompt({ debtor, company, isFirst, hasResponded }) {
-  const firstName   = extractFirstName(debtor);
-  const agentName   = company.agent_name ?? 'Alex';
-  const companyName = company.name ?? company.company_name ?? 'our company';
-  const balance     = debtor.balance ?? debtor.amount ?? 0;
-  const tier        = Math.min(Math.max(parseInt(debtor.tier ?? 1, 10), 1), 4);
-
-  if (isFirst) {
-    // FIRST MESSAGE: Curiosity hook — NO amount, NO negative debt language
-    return `You are ${agentName}, a friendly debt resolution specialist at ${companyName}.
-
-TASK: Write the FIRST outreach message to ${firstName}. This is a curiosity hook to get them to respond.
-
-STRICT RULES FOR THIS FIRST MESSAGE:
-- Use FIRST NAME only: "${firstName}" — NEVER use M./Mme, Mr./Mrs., or any formal title
-- Frame as GOOD NEWS about their "dossier de prêt" / "loan file"
-- NEVER mention: the amount, balance, "impayé", "overdue", "souffrance", "en retard", "dette", "debt", or any negative language
-- Keep it conversational — like texting someone about something they'd want to hear
-- Make them curious and want to respond
-
-Example (French):
-"Bonjour ${firstName}! C'est ${agentName} de ${companyName}. J'ai une bonne nouvelle concernant votre dossier de prêt avec nous. On a quelque chose d'intéressant à vous proposer. Vous avez deux minutes?"
-
-Example (English):
-"Hey ${firstName}! It's ${agentName} from ${companyName}. I've got some good news about your loan file with us. We have something interesting to offer you. Got a couple minutes?"
-
-Write the message in French by default. Keep it short and casual.`;
-  }
-
-  if (!hasResponded) {
-    // FOLLOW-UP when debtor hasn't responded — still friendly, no amount
-    return `You are ${agentName}, a friendly debt resolution specialist at ${companyName}.
-
-TASK: Write a friendly follow-up to ${firstName} who hasn't responded to your first message.
-
-RULES:
-- Use FIRST NAME only: "${firstName}" — NEVER use M./Mme, Mr./Mrs., or any formal title
-- Stay friendly and casual — not pushy
-- Mention you reached out about their "dossier de prêt" / "loan file"
-- DO NOT mention the amount, "impayé", "overdue", or any negative language
-- Offer that you have something advantageous for them
-
-Example (French):
-"Salut ${firstName}, c'est encore ${agentName} de ${companyName}. Je vous ai écrit concernant votre dossier de prêt. On a une offre avantageuse pour vous. Faites-moi signe quand vous avez une minute!"
-
-Write in French by default. Keep it short and warm.`;
-  }
-
-  // MESSAGE 2+: Debtor has responded — now reveal details with options
-  const amtStr = `$${Number(balance).toFixed(2)}`;
-  const floorAmount = debtor.floor ?? balance * 0.3;
-  const RANGES = {
-    1: { min: balance * 0.85, max: balance },
-    2: { min: balance * 0.65, max: balance * 0.90 },
-    3: { min: balance * 0.50, max: balance * 0.75 },
-    4: { min: floorAmount,    max: balance * 0.60 },
-  };
-  const range = RANGES[tier];
-
-  return `You are ${agentName}, a friendly debt resolution specialist at ${companyName}.
-
-TASK: The debtor ${firstName} has responded. Now present the details and options.
-
-Negotiation parameters:
-- Outstanding balance: ${amtStr}
-- Acceptable settlement range: $${range.min.toFixed(2)}–$${range.max.toFixed(2)} (DO NOT disclose this range)
-- Collection stage: Tier ${tier}
-
-RULES:
-- Use FIRST NAME only: "${firstName}" — NEVER use M./Mme, Mr./Mrs., or any formal title
-- Thank them for responding
-- Present two options: flexible payment plan OR a discount to close the file
-- Be conversational and warm
-- Never threaten, harass, or use aggressive language
-- Comply with FDCPA and Canadian collection regulations
-- If they invoke cease and desist, acknowledge immediately and stop
-- Do not accept offers below $${range.min.toFixed(2)}
-- Do not reveal the floor or range
-
-Example (French):
-"Merci de répondre! Donc concernant votre solde de ${amtStr} avec ${companyName}, on a deux options pour vous: une entente de paiement très flexible ou bien un rabais intéressant pour fermer le dossier une fois pour toutes. Qu'est-ce qui marcherait le mieux pour vous?"
-
-Write in French by default.`;
-}
-
-// ─── Process a single scheduled contact ─────────────────────────────────────
-
-async function processScheduledContact(contact) {
-  const { debtor_id, company_id, channel, metadata } = contact;
-
-  // Load debtor and company
-  const { data: debtor } = await supabase
-    .from('debtors')
-    .select('*')
-    .eq('id', debtor_id)
-    .single();
-  if (!debtor) {
-    console.error(`Worker: debtor ${debtor_id} not found`);
-    return;
-  }
-
-  if (debtor.ai_paused || debtor.human_takeover) {
-    console.log(`Worker: debtor ${debtor_id} is paused or in human takeover, skipping`);
-    return;
-  }
-
-  const compliance = await checkContactAllowed(debtor_id, channel);
-  if (!compliance.allowed) {
-    console.log(`Worker: compliance block for ${debtor_id}: ${compliance.reason}`);
-    return;
-  }
-
-  const creds       = await getCompanyCreds(company_id);
-  const firstName   = extractFirstName(debtor);
-  const agentName   = creds.agent_name ?? 'Alex';
-  const companyName = creds.name ?? creds.company_name ?? '';
-  const hasResponded = await debtorHasResponded(debtor_id, company_id);
-
-  console.log('[worker] Using', contact.layer === 1 ? 'HARDCODED template' : 'AI generation', 'for debtor', debtor_id);
-
-  let messageText;
-
-  if (contact.layer === 1) {
-    // ALWAYS use hardcoded template for layer 1 (first contact) — NO AI generation
-    messageText = buildFirstContactMessage(firstName, agentName, companyName, debtor.phone);
-  } else {
-    // Layer 2+: Use AI for follow-ups and negotiations
-    const systemPrompt = buildWorkerPrompt({
-      debtor,
-      company: creds,
-      isFirst: false,
-      hasResponded,
-    });
-
-    const aiResponse = await anthropic.messages.create({
-      model:      'claude-sonnet-4-6-20250514',
-      max_tokens: 512,
-      system:     systemPrompt,
-      messages:   [{ role: 'user', content: 'Write the message now.' }],
-    });
-
-    messageText = postProcessMessage(aiResponse.content[0]?.text ?? '', false);
-  }
-
-  // Send via the appropriate channel
-  if (channel === 'sms') {
-    const fromNumber = await getCompanyTwilioNumber(company_id);
-    if (!fromNumber) {
-      console.error(`Worker: no Twilio number for company ${company_id}`);
-      return;
+    if (company?.stripe_account_id) {
+      linkParams.application_fee_amount = platformFeeCents;
     }
 
-    const sid    = creds.twilio_account_sid ?? process.env.TWILIO_ACCOUNT_SID;
-    const token  = creds.twilio_auth_token  ?? process.env.TWILIO_AUTH_TOKEN;
-    const client = twilio(sid, token);
+    const paymentLink = await stripe.paymentLinks.create(linkParams, stripeOpts);
 
-    await client.messages.create({
-      body: messageText,
+    // Persist the link
+    const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
+    await supabase.from('payment_links').insert({
+      debtor_id:              debtor.id,
+      company_id:             companyId,
+      stripe_payment_link_id: paymentLink.id,
+      url:                    paymentLink.url,
+      amount,
+      description:            `Automated payment — ${debtorName}`,
+      status:                 'active',
+      expires_at:             expiresAt.toISOString(),
+    });
+
+    return paymentLink.url;
+  } catch (err) {
+    console.error(`[worker] Failed to generate payment link for debtor ${debtor.id}:`, err.message);
+    return null;
+  }
+}
+
+async function generateAiMessage(debtor, company, channel) {
+  const amount      = debtor.amount ?? 0;
+  const companyName = company.company_name ?? 'Collections';
+  const agentName   = company.voice_agent_name ?? 'Alex';
+  const firstName   = debtor.first_name ?? debtor.name?.split(' ')[0] ?? 'Client';
+  const lastName    = debtor.name?.split(' ').slice(1).join(' ') ?? '';
+  const lang        = detectLanguage(debtor.phone);
+
+  const debtorGreeting = lastName
+    ? (lang === 'fr' ? `M./Mme ${lastName}` : `Mr./Mrs. ${lastName}`)
+    : firstName;
+
+  const systemPrompt = lang === 'fr'
+    ? 'Tu es un spécialiste de recouvrement. Tu écris des SMS conversationnels et courts. Tu ne parles jamais comme un robot corporatif.'
+    : 'You are a debt recovery specialist. You write short, conversational SMS messages. You never sound like a corporate robot.';
+
+  let userPrompt;
+
+  if (lang === 'fr') {
+    userPrompt = `Tu es ${agentName} de ${companyName}. Tu contactes ${firstName} ${debtorGreeting} par ${channel === 'sms' ? 'SMS' : 'courriel'} pour la première fois. Son solde impayé est de ${amount.toFixed(2)}$. Son numéro est ${debtor.phone ?? 'inconnu'}.
+
+Écris UN SEUL ${channel === 'sms' ? 'SMS' : 'courriel'} de premier contact. Le message DOIT:
+- Commencer par: Bonjour ${debtorGreeting}, ici ${agentName} de ${companyName}.
+- Mentionner le solde exact de ${amount.toFixed(2)}$
+- Offrir deux options: entente de paiement flexible OU rabais pour fermer le dossier
+- Finir par quelque chose de conversationnel comme "Faites-moi signe!"
+- Être entièrement en FRANÇAIS
+- Faire MOINS de 300 caractères
+- Ne JAMAIS dire "contactez-nous", "répondez à ce message", "Reply YES", "Répondez OUI"
+
+Écris SEULEMENT le ${channel === 'sms' ? 'SMS' : 'courriel'}, rien d'autre.`;
+  } else {
+    userPrompt = `You are ${agentName} from ${companyName}. You are contacting ${firstName} ${debtorGreeting} by ${channel === 'sms' ? 'SMS' : 'email'} for the first time. Their unpaid balance is $${amount.toFixed(2)}. Their number is ${debtor.phone ?? 'unknown'}.
+
+Write ONE ${channel === 'sms' ? 'SMS' : 'email'} first contact message. The message MUST:
+- Start with: Hi ${debtorGreeting}, this is ${agentName} from ${companyName}.
+- Mention the exact balance of $${amount.toFixed(2)}
+- Offer two options: flexible payment plan OR discount to close the account
+- End with something conversational like "Let me know!"
+- Be entirely in ENGLISH
+- Be UNDER 300 characters
+- NEVER say "contact us", "call us", "Reply YES", "opt out"
+
+Write ONLY the ${channel === 'sms' ? 'SMS' : 'email'}, nothing else.`;
+  }
+
+  try {
+    const response = await anthropic.messages.create({
+      model:      'claude-sonnet-4-20250514',
+      max_tokens: 300,
+      system:     systemPrompt,
+      messages:   [{ role: 'user', content: userPrompt }],
+    });
+    return (response.content[0]?.text ?? '').trim();
+  } catch (err) {
+    console.error('[worker] AI message generation failed:', err.message);
+    // Fallback static messages — conversational style
+    if (lang === 'fr') {
+      if (channel === 'sms') {
+        return `Bonjour ${debtorGreeting}, ici ${agentName} de ${companyName}. Je vous contacte par rapport à votre solde impayé de ${amount.toFixed(2)}$. Entente flexible ou rabais pour fermer le dossier? Faites-moi signe!`;
+      }
+      return `Bonjour ${debtorGreeting},\n\nIci ${agentName} de ${companyName}. Je vous contacte par rapport à votre solde impayé de ${amount.toFixed(2)}$.\n\nOn aimerait trouver une solution avec vous. Entente flexible ou rabais pour fermer le dossier?\n\nFaites-moi signe!\n\n${agentName}\n${companyName}`;
+    }
+    if (channel === 'sms') {
+      return `Hi ${debtorGreeting}, this is ${agentName} from ${companyName}. I'm reaching out about your unpaid balance of $${amount.toFixed(2)}. Flexible payment plan or settle at a discount? Let me know!`;
+    }
+    return `Hi ${debtorGreeting},\n\nThis is ${agentName} from ${companyName}. I'm reaching out about your unpaid balance of $${amount.toFixed(2)}.\n\nWould you prefer a flexible payment plan or settle at a discount?\n\nLet me know!\n\n${agentName}\n${companyName}`;
+  }
+}
+
+// ─── Channel Handlers ─────────────────────────────────────────────────────────
+
+async function sendSms(debtor, company, message) {
+  const sid   = company.twilio_account_sid ?? process.env.TWILIO_ACCOUNT_SID;
+  const token = company._decrypted_twilio_auth_token ?? process.env.TWILIO_AUTH_TOKEN;
+  if (!sid || !token) {
+    console.error(`[worker:sms] Twilio credentials missing — sid=${!!sid}, token=${!!token}, company=${company.id}`);
+    throw new Error('Twilio credentials not configured');
+  }
+
+  const fromNumber = process.env.TWILIO_DEFAULT_NUMBER || '+14389050764';
+
+  try {
+    const client = twilio(sid, token);
+    const msg = await client.messages.create({
+      body: message,
       from: fromNumber,
       to:   debtor.phone,
     });
-  } else if (channel === 'email') {
-    const apiKey   = creds.sendgrid_api_key ?? process.env.SENDGRID_API_KEY;
-    const fromAddr = creds.sendgrid_from_email ?? process.env.SENDGRID_FROM_EMAIL;
-    sgMail.setApiKey(apiKey);
-
-    const subject = contact.layer === 1
-      ? `Bonne nouvelle — ${companyName}`
-      : `Vos options — ${companyName}`;
-
-    await sgMail.send({
-      to:      debtor.email,
-      from:    fromAddr,
-      subject,
-      text:    messageText,
-    });
+    return { sid: msg.sid, status: msg.status };
+  } catch (err) {
+    console.error(`[worker:sms] Twilio send failed — debtor=${debtor.id}, to=${debtor.phone}, from=${fromNumber}`);
+    console.error(`[worker:sms] Error: ${err.message}`);
+    console.error(`[worker:sms] Stack: ${err.stack}`);
+    if (err.code) console.error(`[worker:sms] Twilio error code: ${err.code}, moreInfo: ${err.moreInfo ?? 'n/a'}`);
+    throw err;
   }
-
-  // Log the contact attempt
-  await supabase.from('contact_attempts').insert({
-    debtor_id,
-    company_id,
-    channel,
-    direction: 'outbound',
-    status:    'sent',
-    metadata:  { ai_generated: contact.layer !== 1, layer: contact.layer, template: contact.layer === 1 ? 'hardcoded_hook' : 'ai' },
-  });
-
-  // Update debtor last contact
-  await supabase.from('debtors').update({
-    last_contact_at:      new Date().toISOString(),
-    last_contact_channel: channel,
-  }).eq('id', debtor_id);
-
-  console.log(`Worker: sent ${channel} to debtor ${debtor_id} (layer: ${contact.layer})`);
 }
 
-// ─── Main loop: pick up due scheduled contacts ─────────────────────────────
+async function sendEmail(debtor, company, message) {
+  const apiKey   = company._decrypted_sendgrid_api_key ?? process.env.SENDGRID_API_KEY;
+  const fromAddr = company.sendgrid_from_email ?? process.env.SENDGRID_FROM_EMAIL;
+  const fromName = company.sendgrid_from_name ?? company.company_name ?? 'Collections';
+  if (!apiKey || !fromAddr) throw new Error('SendGrid credentials not configured');
 
-async function runWorkerCycle() {
-  const now = new Date().toISOString();
+  sgMail.setApiKey(apiKey);
 
-  const { data: dueContacts, error } = await supabase
+  const companyName = company.company_name ?? 'Collections';
+  const subject     = `Account Notice — ${companyName}`;
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <p>${message.replace(/\n/g, '<br>')}</p>
+    </div>
+  `.trim();
+
+  const [result] = await sgMail.send({
+    to:      debtor.email,
+    from:    { email: fromAddr, name: fromName },
+    subject,
+    text:    message,
+    html,
+  });
+  return { statusCode: result.statusCode };
+}
+
+async function initiateCall(debtor, company) {
+  // VAPI call initiation — placeholder for now, logs the attempt
+  console.log(`[worker] CALL placeholder: debtor=${debtor.id}, phone=${debtor.phone}, company=${company.id}`);
+  return { status: 'logged', note: 'VAPI call integration pending' };
+}
+
+// ─── Main Worker ──────────────────────────────────────────────────────────────
+
+async function processScheduledContacts() {
+  const startedAt = new Date();
+  console.log(`[worker] Starting at ${startedAt.toISOString()}`);
+
+  // 1. Fetch pending contacts that are due
+  const { data: contacts, error: fetchError } = await supabase
     .from('scheduled_contacts')
     .select('*')
-    .lte('scheduled_at', now)
     .eq('status', 'pending')
-    .order('scheduled_at', { ascending: true })
-    .limit(50);
+    .lte('scheduled_for', new Date().toISOString())
+    .order('scheduled_for', { ascending: true })
+    .limit(BATCH_SIZE);
 
-  if (error) {
-    console.error('Worker: failed to fetch scheduled contacts', error);
-    return;
+  if (fetchError) {
+    console.error('[worker] Failed to fetch scheduled contacts:', fetchError.message);
+    return { error: fetchError.message, processed: 0, sent: 0, skipped: 0, failed: 0 };
   }
 
-  if (!dueContacts?.length) return;
+  if (!contacts?.length) {
+    console.log('[worker] No pending contacts to process');
+    return { processed: 0, sent: 0, skipped: 0, failed: 0 };
+  }
 
-  console.log(`Worker: processing ${dueContacts.length} scheduled contacts`);
+  console.log(`[worker] Found ${contacts.length} pending contacts`);
 
-  for (const contact of dueContacts) {
+  // Cache company data to avoid repeated lookups
+  const companyCache = {};
+  let sent    = 0;
+  let skipped = 0;
+  let failed  = 0;
+
+  for (const contact of contacts) {
     try {
-      // Mark as processing
-      await supabase
-        .from('scheduled_contacts')
-        .update({ status: 'processing' })
-        .eq('id', contact.id);
+      // 2. Fetch debtor
+      const { data: debtor, error: debtorError } = await supabase
+        .from('debtors')
+        .select('id, name, first_name, phone, email, amount, floor_amount, tier, days_overdue, cease_desist, broken_promise_count')
+        .eq('id', contact.debtor_id)
+        .single();
 
-      await processScheduledContact(contact);
+      if (debtorError || !debtor) {
+        console.warn(`[worker] Debtor ${contact.debtor_id} not found, skipping`);
+        await markContact(contact.id, 'failed');
+        failed++;
+        continue;
+      }
 
-      // Mark as completed
-      await supabase
-        .from('scheduled_contacts')
-        .update({ status: 'completed', completed_at: new Date().toISOString() })
-        .eq('id', contact.id);
+      // 3. Skip checks
+      if (debtor.cease_desist === true) {
+        console.log(`[worker] Debtor ${debtor.id} has cease_desist, skipping`);
+        await markContact(contact.id, 'skipped');
+        skipped++;
+        continue;
+      }
+
+      if ((debtor.amount ?? 0) <= 0) {
+        console.log(`[worker] Debtor ${debtor.id} has zero/negative balance, skipping`);
+        await markContact(contact.id, 'skipped');
+        skipped++;
+        continue;
+      }
+
+      if (contact.channel === 'sms' && !debtor.phone) {
+        console.log(`[worker] Debtor ${debtor.id} has no phone for SMS, skipping`);
+        await markContact(contact.id, 'skipped');
+        skipped++;
+        continue;
+      }
+
+      if (contact.channel === 'email' && !debtor.email) {
+        console.log(`[worker] Debtor ${debtor.id} has no email, skipping`);
+        await markContact(contact.id, 'skipped');
+        skipped++;
+        continue;
+      }
+
+      if (contact.channel === 'call' && !debtor.phone) {
+        console.log(`[worker] Debtor ${debtor.id} has no phone for call, skipping`);
+        await markContact(contact.id, 'skipped');
+        skipped++;
+        continue;
+      }
+
+      // 2b. Fetch company (cached)
+      if (!companyCache[contact.company_id]) {
+        const { data: company, error: companyError } = await supabase
+          .from('client_companies')
+          .select('id, company_name, business_phone, voice_agent_name, twilio_account_sid, twilio_auth_token, sendgrid_api_key, sendgrid_from_email, sendgrid_from_name')
+          .eq('id', contact.company_id)
+          .single();
+
+        if (companyError || !company) {
+          console.warn(`[worker] Company ${contact.company_id} not found, skipping`);
+          await markContact(contact.id, 'failed');
+          failed++;
+          continue;
+        }
+
+        // 4. Decrypt credentials
+        companyCache[contact.company_id] = {
+          ...company,
+          _decrypted_twilio_auth_token: company.twilio_auth_token ? decrypt(company.twilio_auth_token) : null,
+          _decrypted_sendgrid_api_key:  company.sendgrid_api_key  ? decrypt(company.sendgrid_api_key)  : null,
+        };
+      }
+
+      const company = companyCache[contact.company_id];
+
+      // 6. Generate message and send
+      // Payment links are NOT generated for outreach messages.
+      // They are only created when the debtor agrees to an amount during conversation.
+      let result;
+
+      if (contact.channel === 'sms') {
+        const message = await generateAiMessage(debtor, company, 'sms');
+        result = await sendSms(debtor, company, message);
+
+      } else if (contact.channel === 'email') {
+        const message = await generateAiMessage(debtor, company, 'email');
+        result = await sendEmail(debtor, company, message);
+
+      } else if (contact.channel === 'call') {
+        result = await initiateCall(debtor, company);
+
+      } else {
+        console.warn(`[worker] Unknown channel "${contact.channel}", skipping`);
+        await markContact(contact.id, 'skipped');
+        skipped++;
+        continue;
+      }
+
+      // 7. Mark as sent
+      await markContact(contact.id, 'sent');
+      sent++;
+
+      // Log to contact_attempts
+      await supabase.from('contact_attempts').insert({
+        debtor_id:  debtor.id,
+        company_id: contact.company_id,
+        channel:    contact.channel,
+        direction:  'outbound',
+        status:     'sent',
+        metadata:   { ...result, layer: contact.layer, worker: true },
+      });
+
+      console.log(`[worker] Sent ${contact.channel} to debtor ${debtor.id}`);
+
     } catch (err) {
-      console.error(`Worker: error processing contact ${contact.id}:`, err);
-      await supabase
-        .from('scheduled_contacts')
-        .update({ status: 'failed', metadata: { ...contact.metadata, error: err.message } })
-        .eq('id', contact.id);
+      console.error(`[worker] Error processing contact ${contact.id} (channel=${contact.channel}, debtor=${contact.debtor_id}):`);
+      console.error(`[worker] Message: ${err.message}`);
+      console.error(`[worker] Stack: ${err.stack}`);
+      // 8. Mark as failed
+      await markContact(contact.id, 'failed');
+      failed++;
     }
   }
+
+  const summary = {
+    processed: contacts.length,
+    sent,
+    skipped,
+    failed,
+    duration: Date.now() - startedAt.getTime(),
+  };
+  console.log('[worker] Complete:', summary);
+  return summary;
 }
 
-// ─── Start worker with interval ─────────────────────────────────────────────
-
-function startWorker(intervalMs = 60_000) {
-  console.log(`Worker started — polling every ${intervalMs / 1000}s`);
-  runWorkerCycle(); // Run immediately on start
-  return setInterval(runWorkerCycle, intervalMs);
+async function markContact(contactId, status) {
+  await supabase
+    .from('scheduled_contacts')
+    .update({ status })
+    .eq('id', contactId);
 }
 
-module.exports = { startWorker, runWorkerCycle, processScheduledContact, extractFirstName, buildWorkerPrompt, buildFirstContactMessage, postProcessMessage, isQuebecNumber };
+module.exports = { processScheduledContacts };
+// force redeploy

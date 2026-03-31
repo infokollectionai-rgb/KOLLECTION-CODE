@@ -2,8 +2,9 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import PageWrapper from '@/components/layout/PageWrapper';
 import NeonButton from '@/components/ui/NeonButton';
 import { Download, Upload, FileSpreadsheet, AlertCircle, CheckCircle, ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
-import { parseImportFile, processImport, downloadTemplate, type ParseResult, type ParsedRow } from '@/services/importService';
+import { parseImportFile, downloadTemplate, type ParseResult } from '@/services/importService';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 type Phase = 'upload' | 'preview' | 'confirm' | 'progress' | 'done';
 
@@ -42,11 +43,53 @@ export default function ImportAccountsPage() {
     if (file) handleFile(file);
   };
 
-  const handleLaunch = async () => {
+  const importToBackend = async () => {
     if (!parseResult) return;
+
     setPhase('progress');
-    const result = await processImport({ rows: parseResult.rows });
-    setImportResult(result);
+
+    const parsedAccounts = parseResult.rows.filter((row) => row.valid);
+
+    console.log("SENDING TO BACKEND NOW");
+
+    try {
+      const response = await fetch("https://kollection-code-production.up.railway.app/import/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accounts: parsedAccounts.map((a: any) => ({
+            firstName: a["First Name"] || a.firstName || "",
+            lastName: a["Last Name"] || a.lastName || "",
+            phone: a["Phone Number"] || a.phone || "",
+            email: a["Email Address"] || a.email || "",
+            address: a["Full Address"] || a.address || "",
+            city: a["City"] || a.city || "",
+            province: a["Province / State"] || a.province || "",
+            postal: a["Postal / Zip Code"] || a.postal || "",
+            amountOwed: parseFloat(a["Amount Owed"] || a.amountOwed) || 0,
+            daysOverdue: parseInt(a["Days Overdue"] || a.daysOverdue) || 0,
+            loanType: a["Loan Type"] || a.loanType || "",
+            notes: a["Notes"] || a.notes || "",
+          })),
+        }),
+      });
+
+      console.log("BACKEND RESPONSE STATUS:", response.status);
+
+      const data = await response.json();
+      console.log("BACKEND RESPONSE DATA:", data);
+
+      if (!response.ok) {
+        throw new Error(data?.error || data?.message || `Import failed with status ${response.status}`);
+      }
+
+      setImportResult(data);
+      toast.success(`Successfully imported ${parsedAccounts.length} accounts!`);
+    } catch (err: any) {
+      console.error('IMPORT ERROR:', err);
+      toast.error(err?.message || 'Failed to import accounts');
+    }
+
     // Animate progress
     let p = 0;
     const interval = setInterval(() => {
@@ -236,7 +279,7 @@ export default function ImportAccountsPage() {
               <NeonButton size="sm" onClick={() => setPhase('preview')}>
                 <ArrowLeft className="w-3 h-3" /> Back
               </NeonButton>
-              <NeonButton variant="solid" onClick={handleLaunch}>
+              <NeonButton variant="solid" onClick={importToBackend}>
                 🚀 Import & Start AI Recovery
               </NeonButton>
             </div>

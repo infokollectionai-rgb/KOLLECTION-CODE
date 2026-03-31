@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { User, Session } from '@supabase/supabase-js';
 import supabase from '@/lib/supabase';
+
+type User = any;
+type Session = any;
 import { signIn, signOut as authSignOut, signUp, onAuthStateChange, resetPassword as authResetPassword } from '@/services/authService';
 
 interface Profile {
@@ -83,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       // Get initial session
-      supabase.auth.getSession().then(async ({ data: { session: s } }) => {
+      (supabase.auth as any).getSession().then(async ({ data: { session: s } }: any) => {
         setSession(s);
         setUser(s?.user ?? null);
         await loadProfile(s?.user ?? null);
@@ -196,7 +198,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         enterDemoMode,
         isAuthenticated,
         isAdmin: profile?.role === 'admin',
-        isOnboarded: profile?.onboarding_complete === true,
+        isOnboarded: profile?.onboarding_complete === true || localStorage.getItem('onboarding_complete') === 'true',
         isDemoMode,
       }}
     >

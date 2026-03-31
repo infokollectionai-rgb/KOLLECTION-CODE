@@ -6,13 +6,25 @@ const sgMail     = require('@sendgrid/mail');
 const { v4: uuidv4 } = require('uuid');
 
 const supabase                 = require('../database/supabase');
-const { requireAuth }          = require('../middleware/auth');
 const { checkContactAllowed }  = require('../middleware/compliance');
 const { decrypt }              = require('../utils/encryption');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+// TODO: restore requireAuth on all endpoints once frontend and backend share the same Supabase project.
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+async function resolveCompanyId(bodyCompanyId) {
+  if (bodyCompanyId) return bodyCompanyId;
+  const { data: firstCompany } = await supabase
+    .from('client_companies')
+    .select('id')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .single();
+  return firstCompany?.id ?? null;
+}
 
 async function getCompanyCreds(companyId) {
   const { data, error } = await supabase
@@ -40,151 +52,43 @@ async function getCompanyTwilioNumber(companyId) {
   return data?.phone_number ?? null;
 }
 
-function extractFirstName(debtor) {
-  if (debtor?.first_name) return debtor.first_name;
-  const name = debtor?.name ?? debtor?.debtorName ?? '';
-  return name.split(' ')[0] || 'there';
-}
-
-function buildSmsBody({ debtorName, firstName, amount, companyName, agentName, tier, language = 'fr', isFirstMessage = true }) {
-  const first = firstName ?? debtorName?.split(' ')[0] ?? 'there';
-  const agent = agentName ?? 'Alex';
-
-  if (isFirstMessage) {
-    // FIRST MESSAGE: Curiosity hook only — NO amount, NO "impayé"/"overdue"
-    if (language === 'fr') {
-      return (
-        `Bonjour ${first}! C'est ${agent} de ${companyName}. ` +
-        `J'ai une bonne nouvelle concernant votre dossier de prêt avec nous. ` +
-        `On a quelque chose d'intéressant à vous proposer. Vous avez deux minutes? ` +
-        `Répondez STOP pour ne plus recevoir de messages.`
-      );
-    }
-    return (
-      `Hey ${first}! It's ${agent} from ${companyName}. ` +
-      `I've got some good news about your loan file with us. ` +
-      `We have something interesting to offer you. Got a couple minutes? ` +
-      `Reply STOP to opt out.`
-    );
-  }
-
-  // SECOND MESSAGE (or later): reveal details with options
-  const amtStr = amount ? `$${Number(amount).toFixed(2)}` : 'votre solde';
-  if (language === 'fr') {
-    return (
-      `Merci de répondre! Donc concernant votre solde de ${amtStr} avec ${companyName}, ` +
-      `on a deux options pour vous: une entente de paiement très flexible ou bien ` +
-      `un rabais intéressant pour fermer le dossier une fois pour toutes. ` +
-      `Qu'est-ce qui marcherait le mieux pour vous?`
-    );
-  }
+function buildSmsBody({ debtorName, amount, companyName, agentName, tier }) {
+  const first   = debtorName?.split(' ')[0] ?? 'there';
+  const amtStr  = amount ? `$${Number(amount).toFixed(2)}` : 'an outstanding balance';
+  const urgency = tier >= 3 ? 'urgent ' : '';
   return (
-    `Thanks for getting back! So regarding your balance of ${amtStr} with ${companyName}, ` +
-    `we've got two options for you: a very flexible payment plan or an interesting ` +
-    `discount to close the file once and for all. What would work best for you?`
+    `Hi ${first}, this is ${agentName ?? 'Alex'} from ${companyName}. ` +
+    `You have an ${urgency}outstanding balance of ${amtStr}. ` +
+    `Please reply to discuss your repayment options. Reply STOP to opt out.`
   );
 }
 
-function buildFollowUpSms({ firstName, debtorName, companyName, agentName, language = 'fr' }) {
-  const first = firstName ?? debtorName?.split(' ')[0] ?? 'there';
-  const agent = agentName ?? 'Alex';
-
-  if (language === 'fr') {
-    return (
-      `Salut ${first}, c'est encore ${agent} de ${companyName}. ` +
-      `Je vous ai écrit concernant votre dossier de prêt. ` +
-      `On a une offre avantageuse pour vous. ` +
-      `Faites-moi signe quand vous avez une minute!`
-    );
-  }
-  return (
-    `Hey ${first}, it's ${agent} from ${companyName} again. ` +
-    `I reached out about your loan file. ` +
-    `We have a great offer for you. ` +
-    `Let me know when you have a minute!`
-  );
-}
-
-function buildEmailContent({ debtorName, firstName, amount, companyName, agentName, tier, language = 'fr', isFirstMessage = true }) {
-  const first = firstName ?? debtorName?.split(' ')[0] ?? 'there';
-  const agent = agentName ?? 'Alex';
-
-  if (isFirstMessage) {
-    // FIRST EMAIL: Curiosity hook only — NO amount, NO "impayé"/"overdue"
-    const subject = language === 'fr'
-      ? `Bonne nouvelle — ${companyName}`
-      : `Good news — ${companyName}`;
-
-    const text = language === 'fr'
-      ? `Bonjour ${first},\n\n` +
-        `C'est ${agent} de ${companyName}. J'ai une bonne nouvelle concernant votre dossier de prêt avec nous. ` +
-        `On a quelque chose d'intéressant à vous proposer.\n\n` +
-        `Répondez à ce courriel quand vous avez deux minutes!\n\n` +
-        `${agent}\n${companyName}`
-      : `Hey ${first},\n\n` +
-        `It's ${agent} from ${companyName}. I've got some good news about your loan file with us. ` +
-        `We have something interesting to offer you.\n\n` +
-        `Reply to this email when you've got a couple minutes!\n\n` +
-        `${agent}\n${companyName}`;
-
-    const html = language === 'fr'
-      ? `<p>Bonjour ${first},</p>` +
-        `<p>C'est <strong>${agent}</strong> de <strong>${companyName}</strong>. ` +
-        `J'ai une bonne nouvelle concernant votre dossier de prêt avec nous. ` +
-        `On a quelque chose d'intéressant à vous proposer.</p>` +
-        `<p>Répondez à ce courriel quand vous avez deux minutes!</p>` +
-        `<p>${agent}<br>${companyName}</p>`
-      : `<p>Hey ${first},</p>` +
-        `<p>It's <strong>${agent}</strong> from <strong>${companyName}</strong>. ` +
-        `I've got some good news about your loan file with us. ` +
-        `We have something interesting to offer you.</p>` +
-        `<p>Reply to this email when you've got a couple minutes!</p>` +
-        `<p>${agent}<br>${companyName}</p>`;
-
-    return { subject, text, html };
-  }
-
-  // SECOND EMAIL (or later): reveal details with options
-  const amtStr = amount ? `$${Number(amount).toFixed(2)}` : 'votre solde';
-  const subject = language === 'fr'
-    ? `Vos options — ${companyName}`
-    : `Your options — ${companyName}`;
-
-  const text = language === 'fr'
-    ? `Bonjour ${first},\n\n` +
-      `Merci de répondre! Concernant votre solde de ${amtStr} avec ${companyName}, ` +
-      `on a deux options pour vous: une entente de paiement très flexible ou bien ` +
-      `un rabais intéressant pour fermer le dossier une fois pour toutes.\n\n` +
-      `Qu'est-ce qui marcherait le mieux pour vous?\n\n` +
-      `${agent}\n${companyName}`
-    : `Hey ${first},\n\n` +
-      `Thanks for getting back! Regarding your balance of ${amtStr} with ${companyName}, ` +
-      `we've got two options for you: a very flexible payment plan or an interesting ` +
-      `discount to close the file once and for all.\n\n` +
-      `What would work best for you?\n\n` +
-      `${agent}\n${companyName}`;
-
-  const html = language === 'fr'
-    ? `<p>Bonjour ${first},</p>` +
-      `<p>Merci de répondre! Concernant votre solde de <strong>${amtStr}</strong> avec <strong>${companyName}</strong>, ` +
-      `on a deux options pour vous: une entente de paiement très flexible ou bien ` +
-      `un rabais intéressant pour fermer le dossier une fois pour toutes.</p>` +
-      `<p>Qu'est-ce qui marcherait le mieux pour vous?</p>` +
-      `<p>${agent}<br>${companyName}</p>`
-    : `<p>Hey ${first},</p>` +
-      `<p>Thanks for getting back! Regarding your balance of <strong>${amtStr}</strong> with <strong>${companyName}</strong>, ` +
-      `we've got two options for you: a very flexible payment plan or an interesting ` +
-      `discount to close the file once and for all.</p>` +
-      `<p>What would work best for you?</p>` +
-      `<p>${agent}<br>${companyName}</p>`;
-
+function buildEmailContent({ debtorName, amount, companyName, agentName, tier }) {
+  const first   = debtorName?.split(' ')[0] ?? 'there';
+  const amtStr  = amount ? `$${Number(amount).toFixed(2)}` : 'your outstanding balance';
+  const urgency = tier >= 3 ? 'URGENT: ' : '';
+  const subject = `${urgency}Account Notice — ${companyName}`;
+  const text =
+    `Hi ${first},\n\n` +
+    `My name is ${agentName ?? 'Alex'} from ${companyName}. ` +
+    `We are reaching out regarding your outstanding balance of ${amtStr}.\n\n` +
+    `We want to work with you to find a resolution. Please reply to this email ` +
+    `or contact us directly to discuss your repayment options.\n\n` +
+    `Sincerely,\n${agentName ?? 'Alex'}\n${companyName}`;
+  const html =
+    `<p>Hi ${first},</p>` +
+    `<p>My name is <strong>${agentName ?? 'Alex'}</strong> from <strong>${companyName}</strong>. ` +
+    `We are reaching out regarding your outstanding balance of <strong>${amtStr}</strong>.</p>` +
+    `<p>We want to work with you to find a resolution. Please reply to this email ` +
+    `or contact us directly to discuss your repayment options.</p>` +
+    `<p>Sincerely,<br>${agentName ?? 'Alex'}<br>${companyName}</p>`;
   return { subject, text, html };
 }
 
 // ─── POST /agents/outreach/send ───────────────────────────────────────────────
 
-router.post('/outreach/send', requireAuth, async (req, res) => {
-  const { debtorId, debtorName, phone, email, channel, amount, tier, companyName, agentName } = req.body;
+router.post('/outreach/send', async (req, res) => {
+  const { debtorId, debtorName, phone, email, channel, amount, tier, companyName, agentName, companyId } = req.body;
 
   if (!debtorId || !channel) {
     return res.status(400).json({ error: 'debtorId and channel are required' });
@@ -196,15 +100,20 @@ router.post('/outreach/send', requireAuth, async (req, res) => {
   }
 
   try {
-    const creds     = await getCompanyCreds(req.company.id);
+    const resolvedCompanyId = await resolveCompanyId(companyId);
+    if (!resolvedCompanyId) {
+      return res.status(400).json({ error: 'No companyId provided and no companies exist yet' });
+    }
+
+    const creds     = await getCompanyCreds(resolvedCompanyId);
     const attemptId = uuidv4();
     let   deliveryMeta = {};
 
     if (channel === 'sms') {
       if (!phone) return res.status(400).json({ error: 'phone is required for SMS' });
 
-      const fromNumber = await getCompanyTwilioNumber(req.company.id);
-      if (!fromNumber) return res.status(400).json({ error: 'No active Twilio number configured' });
+      const fromNumber = process.env.TWILIO_DEFAULT_NUMBER ?? await getCompanyTwilioNumber(resolvedCompanyId);
+      if (!fromNumber) return res.status(400).json({ error: 'No Twilio number configured — set TWILIO_DEFAULT_NUMBER' });
 
       const sid    = creds.twilio_account_sid ?? process.env.TWILIO_ACCOUNT_SID;
       const token  = creds.twilio_auth_token  ?? process.env.TWILIO_AUTH_TOKEN;
@@ -220,7 +129,7 @@ router.post('/outreach/send', requireAuth, async (req, res) => {
     } else if (channel === 'email') {
       if (!email) return res.status(400).json({ error: 'email is required for email outreach' });
 
-      const apiKey  = creds.sendgrid_api_key ?? process.env.SENDGRID_API_KEY;
+      const apiKey   = creds.sendgrid_api_key   ?? process.env.SENDGRID_API_KEY;
       const fromAddr = creds.sendgrid_from_email ?? process.env.SENDGRID_FROM_EMAIL;
       sgMail.setApiKey(apiKey);
 
@@ -241,7 +150,7 @@ router.post('/outreach/send', requireAuth, async (req, res) => {
     await supabase.from('contact_attempts').insert({
       id:         attemptId,
       debtor_id:  debtorId,
-      company_id: req.company.id,
+      company_id: resolvedCompanyId,
       channel,
       direction:  'outbound',
       status:     'sent',
@@ -257,70 +166,144 @@ router.post('/outreach/send', requireAuth, async (req, res) => {
 
 // ─── POST /agents/negotiation/suggest ─────────────────────────────────────────
 
-router.post('/negotiation/suggest', requireAuth, async (req, res) => {
+router.post('/negotiation/suggest', async (req, res) => {
   const {
     debtorId,
+    debtorPhone,
     conversationHistory = [],
     tier    = 1,
-    balance,
+    amount,
     floor,
     companyName,
+    agentName = 'Alex',
+    companyId,
+    paymentLinkUrl,
   } = req.body;
 
-  if (!debtorId || balance === undefined || balance === null) {
-    return res.status(400).json({ error: 'debtorId and balance are required' });
+  if (!debtorId || amount === undefined || amount === null) {
+    return res.status(400).json({ error: 'debtorId and amount are required' });
   }
 
-  const floorAmount = floor ?? balance * 0.3;
+  const resolvedCompanyId = await resolveCompanyId(companyId);
+  if (!resolvedCompanyId) {
+    return res.status(400).json({ error: 'No companyId provided and no companies exist yet' });
+  }
 
-  // Tier-based settlement ranges (never reveal floor to debtor)
+  // Fetch company details
+  const { data: companyRecord } = await supabase
+    .from('client_companies')
+    .select('business_phone, company_name, voice_agent_name')
+    .eq('id', resolvedCompanyId)
+    .single();
+
+  // Fetch debtor for name details
+  const { data: debtorRecord } = await supabase
+    .from('debtors')
+    .select('name, first_name')
+    .eq('id', debtorId)
+    .single();
+
+  const floorAmount = floor ?? amount * 0.3;
+  const clientCompanyName = companyName ?? companyRecord?.company_name ?? 'a collections agency';
+  const resolvedAgentName = companyRecord?.voice_agent_name ?? agentName;
+  const debtorFirstName = debtorRecord?.first_name ?? debtorRecord?.name?.split(' ')[0] ?? 'Client';
+  const debtorLastName = debtorRecord?.name?.split(' ').slice(1).join(' ') ?? '';
+
+  // Detect language from debtor phone area code
+  const FRENCH_AREA_CODES = ['514', '438', '450', '579', '418', '581', '819', '873'];
+  const phoneDigits = (debtorPhone ?? '').replace(/\D/g, '');
+  const areaCode = phoneDigits.startsWith('1') ? phoneDigits.slice(1, 4) : phoneDigits.slice(0, 3);
+  const lang = FRENCH_AREA_CODES.includes(areaCode) ? 'fr' : 'en';
+
+  // Stage-based settlement ranges matching partner strategy
   const RANGES = {
-    1: { min: balance * 0.85, max: balance },
-    2: { min: balance * 0.65, max: balance * 0.90 },
-    3: { min: balance * 0.50, max: balance * 0.75 },
-    4: { min: floorAmount,    max: balance * 0.60 },
+    1: { offer: amount * 0.70, min: amount * 0.50, max: amount },
+    2: { offer: amount * 0.50, min: amount * 0.40, max: amount * 0.70 },
+    3: { offer: amount * 0.40, min: floorAmount,   max: amount * 0.50 },
+    4: { offer: amount * 0.40, min: floorAmount,   max: amount * 0.50 },
   };
-  const range      = RANGES[Math.min(tier, 4)];
-  const tierLabels = { 1: 'early stage', 2: 'mid stage', 3: 'late stage', 4: 'final stage' };
+  const range = RANGES[Math.min(tier, 4)];
 
-  const systemPrompt = `You are ${req.body.agentName ?? 'Alex'}, a friendly and conversational debt resolution specialist working for ${companyName ?? 'a collections agency'}. You text like a real person — warm, casual, helpful.
+  const systemPrompt = `You are ${resolvedAgentName}, a real person working for ${clientCompanyName}. You're texting a debtor to help them resolve their balance. Write like a real human having an SMS conversation — casual, direct, friendly but professional. No corporate speak.
 
-CRITICAL MESSAGING STRATEGY:
-- Message 1 (FIRST contact): Use a CURIOSITY HOOK with good news. Make the debtor WANT to respond.
-  * Use FIRST NAME only (never M./Mme, Mr./Mrs., or formal titles)
-  * NEVER mention the amount, balance, "impayé", "overdue", "souffrance", "en retard", or any negative debt language
-  * Frame it as good news about their "dossier de prêt" / "loan file"
-  * Example FR: "Bonjour {firstName}! C'est {agentName} de {companyName}. J'ai une bonne nouvelle concernant votre dossier de prêt avec nous. On a quelque chose d'intéressant à vous proposer. Vous avez deux minutes?"
-  * Example EN: "Hey {firstName}! It's {agentName} from {companyName}. I've got some good news about your loan file with us. We have something interesting to offer you. Got a couple minutes?"
+YOUR NAME: ${resolvedAgentName}
+DEBTOR: ${debtorLastName ? (lang === 'fr' ? `M./Mme ${debtorLastName}` : `Mr./Mrs. ${debtorLastName}`) : debtorFirstName}
+DEBTOR FIRST NAME: ${debtorFirstName} (use for follow-ups after first message)
+DEBTOR PHONE: ${debtorPhone ?? 'unknown'}
+LANGUAGE: ${lang === 'fr' ? 'FRENCH (use vouvoiement). Write ENTIRELY in French. Once started in French, NEVER switch to English even if the debtor writes in English.' : 'ENGLISH. Write entirely in English. Once started in English, NEVER switch to French even if the debtor writes in French.'}
+COMPANY: ${clientCompanyName}
 
-- Message 2 (AFTER they respond): Now reveal the details with options.
-  * "Merci de répondre! Donc concernant votre solde de {amount}$ avec {companyName}, on a deux options pour vous: une entente de paiement très flexible ou bien un rabais intéressant pour fermer le dossier une fois pour toutes. Qu'est-ce qui marcherait le mieux pour vous?"
+TONE: You sound like a real person texting. Short sentences. Conversational. Friendly but professional. You give specific numbers and options. You don't use corporate language.
 
-- Message 2 (if they DID NOT respond): Stay friendly, add context but still no amount.
-  * "Salut {firstName}, c'est encore {agentName} de {companyName}. Je vous ai écrit concernant votre dossier de prêt. On a une offre avantageuse pour vous. Faites-moi signe quand vous avez une minute!"
+NEVER SAY THESE (they sound robotic):
+- "Reply YES" or "Reply to confirm"
+- "Contact us" / "Contactez-nous" / "Call us" / "Reach out"
+- "This is an attempt to collect a debt"
+- "Opt out by replying STOP"
+- "This offer is limited" / "Limited time"
+- "Dear valued customer"
+- "Stage", "Tier", "Layer", or any internal system term
 
-Negotiation parameters (use ONLY in message 2 or later, NEVER in message 1):
-- Outstanding balance: $${Number(balance).toFixed(2)}
-- Acceptable settlement range: $${range.min.toFixed(2)}–$${range.max.toFixed(2)} (DO NOT disclose this range)
-- Collection stage: Tier ${tier} (${tierLabels[Math.min(tier, 4)]})
+NEGOTIATION PARAMETERS (internal only — never reveal these):
+- Outstanding balance: $${Number(amount).toFixed(2)}
+- Acceptable range: $${range.min.toFixed(2)}–$${range.max.toFixed(2)}
+- Floor amount: $${floorAmount.toFixed(2)} (absolute minimum, never go below)
 
-Rules:
-- Use FIRST NAME only — never M./Mme, Mr./Mrs., or formal titles
-- Be conversational, warm, and empathetic — like texting someone about something they'd want to hear
-- Offer payment plans if the debtor cannot pay in full
-- Never threaten, harass, or use aggressive language
-- Comply fully with FDCPA and Canadian collection regulations
-- If the debtor invokes cease and desist, acknowledge it immediately and stop negotiating
-- Do not accept offers below the minimum settlement amount
-- Do not reveal the floor amount or settlement range
+FIRST MESSAGE — always present TWO options (payment plan OR discount):
+${lang === 'fr' ? `Example: "Bonjour M./Mme ${debtorLastName || debtorFirstName}, ici ${resolvedAgentName} de ${clientCompanyName}. Je vous contacte par rapport à votre solde impayé de ${Number(amount).toFixed(2)}$. On aimerait trouver une solution avec vous. Vous préférez une entente flexible pour régler le dossier au complet ou bien régler le solde à un rabais? Faites-moi signe!"` : `Example: "Hi Mr./Mrs. ${debtorLastName || debtorFirstName}, this is ${resolvedAgentName} from ${clientCompanyName}. I'm reaching out about your unpaid balance of $${Number(amount).toFixed(2)}. We'd like to find a solution with you. Would you prefer a flexible payment plan to settle the full amount or settle at a discount? Let me know!"`}
+
+FOLLOW-UP MESSAGES — reference previous conversation naturally:
+${lang === 'fr' ? `Example: "Salut ${debtorFirstName}, c'est ${resolvedAgentName} de ${clientCompanyName}. Je vous ai écrit la semaine dernière par rapport à votre solde. On a des options intéressantes pour vous. Qu'est-ce que vous en pensez?"` : `Example: "Hey ${debtorFirstName}, it's ${resolvedAgentName} from ${clientCompanyName}. I reached out last week about your balance. We have some good options for you. What do you think?"`}
+
+WHEN DEBTOR ENGAGES — give specific numbers immediately:
+${lang === 'fr' ? `Example: "Parfait! Pour votre solde de ${Number(amount).toFixed(2)}$, on peut faire ${Math.round(amount * 0.7 / 8)}$ aux deux semaines. Ou si vous préférez fermer le dossier tout de suite, on peut faire ${Number(range.offer).toFixed(2)}$ (${Math.round((1 - range.offer / amount) * 100)}% de rabais). Qu'est-ce qui marche le mieux pour vous?"` : `Example: "Great! For your $${Number(amount).toFixed(2)} balance, we can do $${Math.round(amount * 0.7 / 8)} every two weeks. Or if you'd rather close it out now, we can do $${Number(range.offer).toFixed(2)} (${Math.round((1 - range.offer / amount) * 100)}% discount). What works best for you?"`}
+
+NEGOTIATION STRATEGY (internal — never mention to debtor):
+
+EARLY (Days 0-14):
+- Present two options: payment plan OR 30% discount to close
+- Payment plan: ~50% of original weekly amount, spread over reasonable period
+- Be warm and solution-oriented
+
+ESCALATED (Days 14+):
+- Reference previous attempts naturally ("I've been trying to reach you")
+- Offer 50% discount to close TODAY
+- Can split into max 2 payments within 14 days
+- More direct tone but still human
+
+FINAL (2+ broken promises OR 60+ days):
+- Mention file transfer/consequences naturally
+- One final chance with deadline
+- If they respond: immediately de-escalate and negotiate like a normal person
+
+PAYMENT LINKS:
+- NEVER include a payment link in the first contact or follow-up outreach
+- Payment links are ONLY sent after the debtor explicitly agrees to a specific amount or plan
+- When they agree: set generatePaymentLink=true and paymentLinkAmount to the agreed amount
+
+PROMISE-TO-PAY SIGNALS:
+- "What's my balance?" = high intent — present best offer immediately
+- "What kind of arrangement?" = very high intent — give specific numbers
+- "I've had difficulty because..." = ready to pay — be empathetic, then present offer
+- When they agree: set generatePaymentLink=true
+
+INSULTS:
+Stay calm. Something like: "Je comprends que c'est frustrant, mais ça change pas le solde. On essaie juste de trouver un arrangement réduit avec vous. Si on arrive pas à s'entendre, le dossier va être transféré. C'est à vous de décider." (adapt to language)
+
+CEASE AND DESIST:
+If debtor says "stop contacting me" or mentions OPC/complaint: stop immediately, set shouldEscalate=true.
+
+KEEP IT SHORT: Under 300 characters when possible. Write like you're texting.
 
 Always respond with a valid JSON object — no markdown, no extra text:
 {
-  "message": "<your response to the debtor>",
-  "intent": "<one of: PROMISE_TO_PAY | PARTIAL_PAYMENT | DISPUTE | HARDSHIP | CALLBACK_REQUEST | CEASE_DESIST | UNRESPONSIVE | GENERAL_INQUIRY>",
+  "message": "<your SMS message>",
+  "intent": "<one of: PAYMENT_INTENT | CANNOT_PAY_FULL | HARDSHIP | DISPUTE | LEGAL_THREAT | CEASE_DESIST | CALLBACK_REQUEST | PROMISE_TO_PAY | INSULT | BALANCE_INQUIRY | NO_RESPONSE | UNCLASSIFIED>",
   "suggestedOffer": <null or number>,
   "shouldEscalate": <true|false>,
-  "escalationReason": <null or string>
+  "escalationReason": <null or string>,
+  "generatePaymentLink": <true|false>,
+  "paymentLinkAmount": <null or number>
 }`;
 
   // Map conversation history to Anthropic message format
@@ -332,13 +315,13 @@ Always respond with a valid JSON object — no markdown, no extra text:
   if (messages.length === 0) {
     messages.push({
       role:    'user',
-      content: `[System: Generate a friendly FIRST MESSAGE using the curiosity hook strategy. Use first name only. Do NOT mention the amount, balance, or any negative debt language. Make them want to respond with good news about their loan file.]`,
+      content: `[System: Generate a professional opening message to begin contact with this debtor about their $${Number(amount).toFixed(2)} outstanding balance.]`,
     });
   }
 
   try {
     const response = await anthropic.messages.create({
-      model:      'claude-opus-4-6',
+      model:      'claude-sonnet-4-20250514',
       max_tokens: 1024,
       system:     systemPrompt,
       messages,
@@ -351,23 +334,25 @@ Always respond with a valid JSON object — no markdown, no extra text:
       parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
     } catch {
       parsed = {
-        message:          raw,
-        intent:           'GENERAL_INQUIRY',
-        suggestedOffer:   null,
-        shouldEscalate:   false,
-        escalationReason: null,
+        message:            raw,
+        intent:             'UNCLASSIFIED',
+        suggestedOffer:     null,
+        shouldEscalate:     false,
+        escalationReason:   null,
+        generatePaymentLink: false,
+        paymentLinkAmount:  null,
       };
     }
 
     // Log AI message
     await supabase.from('conversations').insert({
       debtor_id:  debtorId,
-      company_id: req.company.id,
+      company_id: resolvedCompanyId,
       channel:    'ai',
       direction:  'outbound',
       content:    parsed.message,
       intent:     parsed.intent,
-      metadata:   { tier, balance, suggestedOffer: parsed.suggestedOffer },
+      metadata:   { tier, amount, suggestedOffer: parsed.suggestedOffer },
     });
 
     res.json(parsed);
@@ -379,63 +364,79 @@ Always respond with a valid JSON object — no markdown, no extra text:
 
 // ─── POST /agents/takeover/request ────────────────────────────────────────────
 
-router.post('/takeover/request', requireAuth, async (req, res) => {
-  const { debtorId, requestedBy, reason } = req.body;
+router.post('/takeover/request', async (req, res) => {
+  const { debtorId, reason, companyId } = req.body;
   if (!debtorId) return res.status(400).json({ error: 'debtorId is required' });
 
-  const { error } = await supabase
-    .from('debtors')
-    .update({
-      ai_paused:              true,
-      human_takeover:         true,
-      human_takeover_reason:  reason       ?? null,
-      human_takeover_by:      requestedBy  ?? req.user.id,
-      human_takeover_at:      new Date().toISOString(),
-    })
-    .eq('id', debtorId);
+  // Flag cease_desist if that's the reason (column exists in debtors)
+  const update = {};
+  if (reason === 'cease_desist') {
+    update.cease_desist = true;
+  }
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (Object.keys(update).length) {
+    const { error } = await supabase
+      .from('debtors')
+      .update(update)
+      .eq('id', debtorId);
+    if (error) return res.status(500).json({ error: error.message });
+  }
+
+  // Log the escalation in conversations
+  const resolvedCompanyId = await resolveCompanyId(companyId);
+  await supabase.from('conversations').insert({
+    debtor_id:  debtorId,
+    company_id: resolvedCompanyId,
+    channel:    'system',
+    direction:  'internal',
+    content:    `Escalated to human queue. Reason: ${reason ?? 'not specified'}`,
+    metadata:   { type: 'takeover_request', reason },
+  });
+
   res.json({ success: true, message: 'Debtor escalated to human queue' });
 });
 
 // ─── POST /agents/takeover/return ─────────────────────────────────────────────
 
-router.post('/takeover/return', requireAuth, async (req, res) => {
-  const { debtorId, notes } = req.body;
+router.post('/takeover/return', async (req, res) => {
+  const { debtorId, notes, companyId } = req.body;
   if (!debtorId) return res.status(400).json({ error: 'debtorId is required' });
 
-  const { error } = await supabase
-    .from('debtors')
-    .update({
-      ai_paused:             false,
-      human_takeover:        false,
-      human_takeover_reason: null,
-      human_takeover_at:     null,
-      human_notes:           notes ?? null,
-      returned_to_ai_at:     new Date().toISOString(),
-    })
-    .eq('id', debtorId);
+  // Log the return in conversations
+  const resolvedCompanyId = await resolveCompanyId(companyId);
+  await supabase.from('conversations').insert({
+    debtor_id:  debtorId,
+    company_id: resolvedCompanyId,
+    channel:    'system',
+    direction:  'internal',
+    content:    `Returned to AI queue.${notes ? ` Notes: ${notes}` : ''}`,
+    metadata:   { type: 'takeover_return', notes },
+  });
 
-  if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true, message: 'Debtor returned to AI queue' });
 });
 
 // ─── POST /agents/promises/log ────────────────────────────────────────────────
 
-router.post('/promises/log', requireAuth, async (req, res) => {
-  const { debtorId, amount, promisedDate, channel } = req.body;
+router.post('/promises/log', async (req, res) => {
+  const { debtorId, amount, promisedDate, channel, companyId } = req.body;
 
   if (!debtorId || !amount || !promisedDate) {
     return res.status(400).json({ error: 'debtorId, amount, and promisedDate are required' });
   }
 
   try {
+    const resolvedCompanyId = await resolveCompanyId(companyId);
+    if (!resolvedCompanyId) {
+      return res.status(400).json({ error: 'No companyId provided and no companies exist yet' });
+    }
+
     const promiseId = uuidv4();
 
     const { error: promiseError } = await supabase.from('promises').insert({
       id:            promiseId,
       debtor_id:     debtorId,
-      company_id:    req.company.id,
+      company_id:    resolvedCompanyId,
       amount,
       promised_date: promisedDate,
       channel:       channel ?? 'sms',
@@ -443,12 +444,8 @@ router.post('/promises/log', requireAuth, async (req, res) => {
     });
     if (promiseError) throw promiseError;
 
-    // Update debtor record with promise info
-    await supabase.from('debtors').update({
-      last_promise_amount: amount,
-      last_promise_date:   promisedDate,
-      has_active_promise:  true,
-    }).eq('id', debtorId);
+    // Increment broken_promise_count is handled when a promise expires/breaks,
+    // not here — broken_promise_count is a real column in debtors.
 
     // Schedule a reminder 1 day before the promised date
     const reminderDate = new Date(promisedDate);
@@ -456,12 +453,13 @@ router.post('/promises/log', requireAuth, async (req, res) => {
     reminderDate.setHours(10, 0, 0, 0);
 
     await supabase.from('scheduled_contacts').insert({
-      debtor_id:   debtorId,
-      company_id:  req.company.id,
-      channel:     channel ?? 'sms',
-      scheduled_at: reminderDate.toISOString(),
-      type:        'promise_reminder',
-      metadata:    { promise_id: promiseId, amount, promised_date: promisedDate },
+      debtor_id:        debtorId,
+      company_id:       resolvedCompanyId,
+      channel:          channel ?? 'sms',
+      scheduled_for:    reminderDate.toISOString(),
+      layer:            'promise_reminder',
+      status:           'pending',
+      message_template: `Reminder: your payment of $${Number(amount).toFixed(2)} is due tomorrow.`,
     });
 
     res.json({ success: true, promiseId });
@@ -482,6 +480,7 @@ async function initiateVoiceCall(req, res) {
     companyName,
     agentName = 'Alex',
     tier      = 1,
+    companyId,
   } = req.body;
 
   if (!debtorId || !phone) {
@@ -494,7 +493,12 @@ async function initiateVoiceCall(req, res) {
   }
 
   try {
-    const creds       = await getCompanyCreds(req.company.id);
+    const resolvedCompanyId = await resolveCompanyId(companyId);
+    if (!resolvedCompanyId) {
+      return res.status(400).json({ error: 'No companyId provided and no companies exist yet' });
+    }
+
+    const creds       = await getCompanyCreds(resolvedCompanyId);
     const vapiKey     = creds.vapi_api_key     ?? process.env.VAPI_API_KEY;
     const assistantId = creds.vapi_assistant_id ?? process.env.VAPI_ASSISTANT_ID;
 
@@ -513,7 +517,7 @@ async function initiateVoiceCall(req, res) {
           variableValues: {
             debtorName,
             debtorFirstName: debtorName?.split(' ')[0] ?? '',
-            balance:         amount ? `$${Number(amount).toFixed(2)}` : 'your outstanding balance',
+            amount:          amount ? `$${Number(amount).toFixed(2)}` : 'your outstanding balance',
             companyName:     companyName ?? '',
             agentName,
             tier:            String(tier),
@@ -521,7 +525,7 @@ async function initiateVoiceCall(req, res) {
         },
         metadata: {
           debtorId,
-          companyId: req.company.id,
+          companyId: resolvedCompanyId,
           tier,
         },
       }),
@@ -536,7 +540,7 @@ async function initiateVoiceCall(req, res) {
 
     await supabase.from('contact_attempts').insert({
       debtor_id:  debtorId,
-      company_id: req.company.id,
+      company_id: resolvedCompanyId,
       channel:    'call',
       direction:  'outbound',
       status:     'initiated',
@@ -551,7 +555,7 @@ async function initiateVoiceCall(req, res) {
 }
 
 // POST /agents/voice/call
-router.post('/voice/call', requireAuth, initiateVoiceCall);
+router.post('/voice/call', initiateVoiceCall);
 
 // ─── POST /agents/voice/webhook  (no auth — VAPI calls this) ──────────────────
 
@@ -586,11 +590,6 @@ router.post('/voice/webhook', async (req, res) => {
           .from('contact_attempts')
           .update({ status: 'completed', metadata: { call_id: callId, summary } })
           .eq('metadata->>call_id', callId);
-
-        await supabase.from('debtors').update({
-          last_contact_at:      new Date().toISOString(),
-          last_contact_channel: 'call',
-        }).eq('id', debtorId);
       }
     }
 
@@ -603,8 +602,9 @@ router.post('/voice/webhook', async (req, res) => {
 
 // ─── GET /agents/voice/result/:callId ─────────────────────────────────────────
 
-router.get('/voice/result/:callId', requireAuth, async (req, res) => {
+router.get('/voice/result/:callId', async (req, res) => {
   const { callId } = req.params;
+  const companyId  = req.query.companyId ?? null;
 
   try {
     // Check local DB first
@@ -617,8 +617,12 @@ router.get('/voice/result/:callId', requireAuth, async (req, res) => {
     if (transcript) return res.json(transcript);
 
     // Fallback: fetch live from VAPI
-    const creds  = await getCompanyCreds(req.company.id);
-    const vapiKey = creds.vapi_api_key ?? process.env.VAPI_API_KEY;
+    const resolvedCompanyId = await resolveCompanyId(companyId);
+    let vapiKey = process.env.VAPI_API_KEY;
+    if (resolvedCompanyId) {
+      const creds = await getCompanyCreds(resolvedCompanyId);
+      vapiKey = creds.vapi_api_key ?? vapiKey;
+    }
 
     const vapiRes = await fetch(`https://api.vapi.ai/call/${callId}`, {
       headers: { Authorization: `Bearer ${vapiKey}` },

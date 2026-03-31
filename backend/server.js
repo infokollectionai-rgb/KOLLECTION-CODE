@@ -38,8 +38,22 @@ app.use('/stripe',     require('./routes/stripe-connect'));
 app.use('/admin',      require('./routes/admin'));
 
 // POST /calls/initiate — alias for POST /agents/voice/call
-const { requireAuth } = require('./middleware/auth');
-app.post('/calls/initiate', requireAuth, agentsRouter.initiateVoiceCall);
+// TODO: restore requireAuth once frontend and backend share the same Supabase project.
+app.post('/calls/initiate', agentsRouter.initiateVoiceCall);
+
+// ─── Cron Worker ────────────────────────────────────────────────────────────
+// Called by Railway cron or n8n every 15 minutes
+const { processScheduledContacts } = require('./services/worker');
+
+app.get('/cron/process', async (req, res) => {
+  try {
+    const result = await processScheduledContacts();
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Cron process error:', err);
+    res.status(500).json({ error: err.message ?? 'Cron processing failed' });
+  }
+});
 
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req, res) => {

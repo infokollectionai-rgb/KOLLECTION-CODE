@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Plus, Trash2, Check, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { toast } from 'sonner';
 import kollectionLogo from '@/assets/kollection-logo.png';
 import { useAuth } from '@/context/AuthContext';
 import NeonButton from '@/components/ui/NeonButton';
-import { useToast } from '@/hooks/use-toast';
 import {
   registerCompany,
   testTwilioConnection,
@@ -112,9 +111,7 @@ function TestButton({ status, errorMsg, onClick }: { status: TestStatus; errorMs
 interface PhoneEntry { phone_number: string; label: string }
 
 export default function OnboardingWizard() {
-  const { user, session, profile } = useAuth();
-  const navigate = useNavigate();
-  const { toast } = useToast();
+  const { user } = useAuth();
 
   const [step, setStep] = useState(1);
   const [dir, setDir] = useState(1);
@@ -402,24 +399,17 @@ export default function OnboardingWizard() {
       const responseData = await res.json().catch(() => ({}));
       console.log('SUCCESS RESPONSE:', responseData);
 
-      toast({ title: 'Success', description: 'Application submitted successfully!' });
+      localStorage.setItem('onboarding_complete', 'true');
+      toast.success('Application submitted successfully!');
 
-      // Mark onboarding complete
-      try {
-        if (user) {
-          await supabase.from('client_companies').update({ onboarding_complete: true }).eq('auth_user_id', user.id);
-        }
-      } catch {
-        console.warn('Could not mark onboarding complete in DB');
-      }
-
-      setTimeout(() => navigate('/dashboard', { replace: true }), 2000);
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 1500);
     } catch (err: any) {
       console.error('SUBMIT ERROR:', err);
       const msg = err.name === 'AbortError' ? 'Request timed out. Please try again.' : (err.message ?? 'Registration failed');
-      toast({ title: 'Error', description: msg, variant: 'destructive' });
-    } finally {
       setSubmitting(false);
+      toast.error(msg);
     }
   };
 

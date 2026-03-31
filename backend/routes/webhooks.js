@@ -83,7 +83,7 @@ router.post('/inbound/sms', async (req, res) => {
         max_tokens: 200,
         system:
           `You are a professional debt collection assistant. ` +
-          `Respond concisely (under 160 characters for SMS) about a $${debtor.balance ?? 0} outstanding balance. ` +
+          `Respond concisely (under 160 characters for SMS) about a $${debtor.amount ?? 0} outstanding balance. ` +
           `Be empathetic, professional, and helpful.`,
         messages: [
           ...history,
@@ -139,10 +139,8 @@ router.post('/inbound/email', async (req, res) => {
         metadata:   { subject, from, to },
       });
 
-      await supabase.from('debtors').update({
-        last_contact_at:      new Date().toISOString(),
-        last_contact_channel: 'email',
-      }).eq('id', debtor.id);
+      // last_contact_at and last_contact_channel don't exist in debtors table
+      // Contact tracking is done via the conversations table instead
     }
 
     res.sendStatus(200);
@@ -189,23 +187,57 @@ router.post('/stripe', async (req, res) => {
 
           const { data: debtor } = await supabase
             .from('debtors')
-            .select('balance')
+            .select('amount')
             .eq('id', debtor_id)
             .single();
 
           if (debtor) {
-            const newBalance = Math.max(0, (debtor.balance ?? 0) - amountPaid);
+            const newAmount = Math.max(0, (debtor.amount ?? 0) - amountPaid);
             await supabase.from('debtors').update({
-              balance:              newBalance,
-              status:               newBalance <= 0 ? 'PAID' : 'partial_payment',
-              last_payment_at:      new Date().toISOString(),
-              last_payment_amount:  amountPaid,
+              amount: newAmount,
             }).eq('id', debtor_id);
 
             await supabase
               .from('payment_links')
               .update({ status: 'paid' })
               .eq('debtor_id', debtor_id)
+              .eq('status', 'active');
+          }
+        }
+        break;
+      }
+
+      case 'payment_intent.succeeded': {
+        const intent    = event.data.object;
+        const { debtor_id: piDebtorId, company_id: piCompanyId } = intent.metadata ?? {};
+        const piAmountPaid = (intent.amount_received ?? intent.amount ?? 0) / 100;
+
+        if (piDebtorId) {
+          await supabase.from('payments').insert({
+            debtor_id:          piDebtorId,
+            company_id:         piCompanyId,
+            amount:             piAmountPaid,
+            stripe_payment_intent_id: intent.id,
+            payment_method:     intent.payment_method_types?.[0] ?? 'card',
+            status:             'completed',
+          });
+
+          const { data: piDebtor } = await supabase
+            .from('debtors')
+            .select('amount')
+            .eq('id', piDebtorId)
+            .single();
+
+          if (piDebtor) {
+            const newAmount = Math.max(0, (piDebtor.amount ?? 0) - piAmountPaid);
+            await supabase.from('debtors').update({
+              amount: newAmount,
+            }).eq('id', piDebtorId);
+
+            await supabase
+              .from('payment_links')
+              .update({ status: 'paid' })
+              .eq('debtor_id', piDebtorId)
               .eq('status', 'active');
           }
         }
