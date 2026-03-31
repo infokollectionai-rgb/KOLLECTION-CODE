@@ -46,18 +46,13 @@ router.post('/inbound/sms', async (req, res) => {
       return res.type('text/xml').send(xmlReply(''));
     }
 
-    // Store inbound message
-    await supabase.from('conversations').insert({
-      debtor_id:  debtor.id,
-      company_id: companyId,
-      channel:    'sms',
-      direction:  'inbound',
-      content:    body,
-    });
-
-    // Opt-out keywords
+    // Opt-out keywords (check before storing — opt-out messages don't need AI history)
     const OPT_OUT = ['STOP', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT'];
     if (OPT_OUT.includes(body.trim().toUpperCase())) {
+      await supabase.from('conversations').insert({
+        debtor_id: debtor.id, company_id: companyId,
+        channel: 'sms', direction: 'inbound', content: body,
+      });
       await supabase.from('debtors').update({ sms_opted_out: true }).eq('id', debtor.id);
       return res.type('text/xml').send(
         xmlReply('You have been unsubscribed and will no longer receive SMS messages from us.')
@@ -66,10 +61,145 @@ router.post('/inbound/sms', async (req, res) => {
 
     // Auto-reply via AI if debtor is still in AI queue
     if (!debtor.ai_paused && !debtor.cease_desist && !debtor.human_takeover) {
+      // Fetch company record for name + agent name + Stripe account
+      const { data: company } = await supabase
+        .from('client_companies')
+        .select('company_name, voice_agent_name, stripe_account_id')
+        .eq('id', debtor.company_id ?? companyId)
+        .single();
+
+      const agentName   = company?.voice_agent_name || 'Alex';
+      const companyName = company?.company_name || 'a collections agency';
+      const firstName   = debtor.first_name || debtor.name?.split(' ')[0] || 'Client';
+      const amount      = Number(debtor.amount ?? 0);
+      const tier        = Math.min(Math.max(parseInt(debtor.tier ?? 1, 10), 1), 4);
+
+      // Detect language from phone area code
+      const FRENCH_AREA_CODES = ['514', '438', '450', '579', '418', '581', '819', '873'];
+      const phoneDigits = fromPhone.replace(/\D/g, '');
+      const areaCode    = phoneDigits.startsWith('1') ? phoneDigits.slice(1, 4) : phoneDigits.slice(0, 3);
+      const lang        = FRENCH_AREA_CODES.includes(areaCode) ? 'fr' : 'en';
+
+      // Stage-based settlement ranges
+      const floorAmount = amount * 0.3;
+      const RANGES = {
+        1: { offer: amount * 0.70, min: amount * 0.50, max: amount },
+        2: { offer: amount * 0.50, min: amount * 0.40, max: amount * 0.70 },
+        3: { offer: amount * 0.40, min: floorAmount,   max: amount * 0.50 },
+        4: { offer: amount * 0.40, min: floorAmount,   max: amount * 0.50 },
+      };
+      const range = RANGES[tier];
+
+      // Build full negotiation system prompt
+      const systemPrompt = lang === 'fr'
+        ? `Tu es ${agentName}, une vraie personne qui travaille pour ${companyName}. Tu as une conversation SMS avec ${firstName} à propos de son solde de ${amount.toFixed(2)}$.
+
+TON NOM: ${agentName}
+DÉBITEUR: ${firstName} (utilise TOUJOURS le prénom seulement — JAMAIS M./Mme ou titre formel)
+LANGUE: FRANÇAIS (vouvoiement). Écris ENTIÈREMENT en français. JAMAIS changer en anglais même si le client écrit en anglais.
+COMPAGNIE: ${companyName}
+
+TON: Tu sonnes comme une vraie personne qui texte. Phrases courtes. Conversationnel. Amical mais professionnel. Tu donnes des chiffres précis et des options. Pas de langage corporatif.
+
+NE DIS JAMAIS:
+- "M./Mme", "Mr./Mrs." ou tout titre formel — PRÉNOM seulement
+- "Répondez OUI" ou "Répondez pour confirmer"
+- "Contactez-nous" / "Appelez-nous" — tu ES le contact
+- "Ceci est une tentative de recouvrement"
+- "Stage", "Tier", "Layer" ou tout terme système interne
+
+PARAMÈTRES DE NÉGOCIATION (interne — ne jamais révéler):
+- Solde: ${amount.toFixed(2)}$
+- Fourchette acceptable: ${range.min.toFixed(2)}$–${range.max.toFixed(2)}$
+- Plancher: ${floorAmount.toFixed(2)}$ (minimum absolu)
+
+RÈGLES:
+- Tu CONTINUES la conversation. Ne redis JAMAIS "Bonjour" si tu l'as déjà dit.
+- Tu MÈNES la conversation. Tu ne poses PAS de questions ouvertes comme "comment puis-je vous aider".
+- Tu dis au débiteur qu'il fait partie d'une liste de personnes qui ont accès à une offre spéciale pour régler leur dossier.
+- Tu présentes TOUJOURS deux options concrètes: rabais pour fermer le dossier OU plan de paiement flexible.
+- Après avoir révélé le solde, dis immédiatement: "On peut soit fermer le dossier avec un rabais de ${Math.round((1 - range.offer / amount) * 100)}%, soit mettre en place des paiements de ${Math.round(amount * 0.7 / 8)}$ aux deux semaines. Qu'est-ce qui vous convient le mieux?"
+- Ne donne JAMAIS trop d'espace au client pour réfléchir. Toujours deux options.
+- JAMAIS utiliser M./Mme, utilise le PRÉNOM seulement.
+- Messages courts, moins de 300 caractères.
+
+STRATÉGIE DE NÉGOCIATION:
+DÉBUT (Jours 0-14): Plan de paiement OU rabais de 30% pour fermer.
+ESCALADÉ (Jours 14+): Rabais 50% pour fermer AUJOURD'HUI, max 2 paiements en 14 jours.
+FINAL (2+ promesses brisées OU 60+ jours): Mention transfert de dossier, dernière chance.
+
+LIENS DE PAIEMENT:
+- JAMAIS de lien au premier contact
+- Seulement APRÈS que le débiteur accepte un montant précis
+- Quand il accepte: dis "Parfait! Je vous envoie le lien de paiement tout de suite." et ajoute [GENERATE_PAYMENT_LINK:montant] à la fin (ex: [GENERATE_PAYMENT_LINK:350.00])
+
+CESSATION:
+- Si le client dit STOP ou mentionne l'OPC: réponds "Votre demande a été notée. Nous arrêtons les communications." et ajoute [CEASE_DESIST] à la fin.
+
+INSULTES:
+Reste calme. "Je comprends que c'est frustrant, mais ça change pas le solde. On essaie juste de trouver un arrangement réduit avec vous."
+
+SIGNAUX DE PROMESSE DE PAYER:
+- "C'est quoi mon solde?" = haute intention — présente la meilleure offre
+- "Quel genre d'arrangement?" = très haute intention — donne des chiffres précis
+- "J'ai eu des difficultés..." = prêt à payer — empathie puis offre`
+        : `You are ${agentName}, a real person working for ${companyName}. You're texting ${firstName} about their $${amount.toFixed(2)} balance.
+
+YOUR NAME: ${agentName}
+DEBTOR: ${firstName} (ALWAYS use first name only — NEVER Mr./Mrs. or any formal title)
+LANGUAGE: ENGLISH. Write entirely in English. NEVER switch to French even if the debtor writes in French.
+COMPANY: ${companyName}
+
+TONE: You sound like a real person texting. Short sentences. Conversational. Friendly but professional. Give specific numbers and options. No corporate speak.
+
+NEVER SAY:
+- "Mr./Mrs./Ms." or any formal title — FIRST NAME ONLY
+- "Reply YES" or "Reply to confirm"
+- "Contact us" / "Call us" — you ARE the contact
+- "This is an attempt to collect a debt"
+- "Stage", "Tier", "Layer", or any internal system term
+
+NEGOTIATION PARAMETERS (internal — never reveal):
+- Outstanding balance: $${amount.toFixed(2)}
+- Acceptable range: $${range.min.toFixed(2)}–$${range.max.toFixed(2)}
+- Floor amount: $${floorAmount.toFixed(2)} (absolute minimum)
+
+RULES:
+- CONTINUE the conversation. NEVER say "Hi" again if you already have.
+- LEAD the conversation. Don't ask open questions like "how can I help you".
+- Tell the debtor they're on a list of people with access to a special offer to settle their file.
+- ALWAYS present two concrete options: discount to close the file OR flexible payment plan.
+- After revealing the balance, immediately say: "We can either close the file with a ${Math.round((1 - range.offer / amount) * 100)}% discount, or set up payments of $${Math.round(amount * 0.7 / 8)} every two weeks. What works best for you?"
+- NEVER give too much space to think. Always two options.
+- Short messages, under 300 characters.
+
+NEGOTIATION STRATEGY:
+EARLY (Days 0-14): Payment plan OR 30% discount to close.
+ESCALATED (Days 14+): 50% discount to close TODAY, max 2 payments in 14 days.
+FINAL (2+ broken promises OR 60+ days): Mention file transfer, last chance.
+
+PAYMENT LINKS:
+- NEVER include a link on first contact
+- Only AFTER the debtor agrees to a specific amount
+- When they agree: say "Perfect! I'll send you the payment link right now." and add [GENERATE_PAYMENT_LINK:amount] at the end (e.g. [GENERATE_PAYMENT_LINK:350.00])
+
+CEASE AND DESIST:
+- If debtor says "stop contacting me" or mentions complaints: respond "Your request has been noted. We are stopping communications." and add [CEASE_DESIST] at the end.
+
+INSULTS:
+Stay calm. "I understand it's frustrating, but that doesn't change the balance. We're just trying to find a reduced arrangement with you."
+
+PROMISE-TO-PAY SIGNALS:
+- "What's my balance?" = high intent — present best offer immediately
+- "What kind of arrangement?" = very high intent — give specific numbers
+- "I've had difficulty because..." = ready to pay — empathy then offer`;
+
+      // Fetch conversation history BEFORE inserting the new message (avoids duplicate)
       const { data: recentConvos } = await supabase
         .from('conversations')
         .select('direction, content')
         .eq('debtor_id', debtor.id)
+        .eq('channel', 'sms')
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -78,21 +208,93 @@ router.post('/inbound/sms', async (req, res) => {
         content: c.content,
       }));
 
+      // NOW store the inbound message (after history fetch to avoid duplicate)
+      await supabase.from('conversations').insert({
+        debtor_id:  debtor.id,
+        company_id: companyId,
+        channel:    'sms',
+        direction:  'inbound',
+        content:    body,
+      });
+
       const aiRes = await anthropic.messages.create({
-        model:      'claude-haiku-4-5-20251001',
-        max_tokens: 200,
-        system:
-          `You are a professional debt collection assistant. ` +
-          `Respond concisely (under 160 characters for SMS) about a $${debtor.amount ?? 0} outstanding balance. ` +
-          `Be empathetic, professional, and helpful.`,
+        model:      'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        system:     systemPrompt,
         messages: [
           ...history,
           { role: 'user', content: body },
         ],
       });
 
-      const replyText = (aiRes.content[0]?.text ?? '').slice(0, 160).trim() ||
-        'Thank you for your message. An agent will follow up with you shortly.';
+      let replyText = (aiRes.content[0]?.text ?? '').trim() ||
+        (lang === 'fr'
+          ? 'Merci pour votre message. Un agent vous contactera sous peu.'
+          : 'Thank you for your message. An agent will follow up with you shortly.');
+
+      // Handle [CEASE_DESIST] tag
+      if (replyText.includes('[CEASE_DESIST]')) {
+        replyText = replyText.replace(/\s*\[CEASE_DESIST\]\s*/g, '').trim();
+        await supabase.from('debtors').update({ cease_desist: true }).eq('id', debtor.id);
+      }
+
+      // Handle [GENERATE_PAYMENT_LINK:amount] tag
+      const paymentMatch = replyText.match(/\[GENERATE_PAYMENT_LINK[:\s]*([\d.]+)?\]/);
+      if (paymentMatch) {
+        replyText = replyText.replace(/\s*\[GENERATE_PAYMENT_LINK[:\s]*[\d.]*\]\s*/g, '').trim();
+        const linkAmount = parseFloat(paymentMatch[1]) || amount;
+
+        try {
+          const targetCompanyId = debtor.company_id ?? companyId;
+          const stripeOpts = company?.stripe_account_id
+            ? { stripeAccount: company.stripe_account_id }
+            : undefined;
+
+          const product = await stripe.products.create(
+            { name: `Recovery - ${companyName}`, metadata: { debtor_id: debtor.id, debtor_name: firstName } },
+            stripeOpts
+          );
+          const price = await stripe.prices.create(
+            { product: product.id, unit_amount: Math.round(linkAmount * 100), currency: 'cad' },
+            stripeOpts
+          );
+
+          const linkParams = {
+            line_items: [{ price: price.id, quantity: 1 }],
+            metadata:   { debtor_id: debtor.id, company_id: targetCompanyId },
+            after_completion: {
+              type: 'hosted_confirmation',
+              hosted_confirmation: { custom_message: 'Thank you. Your payment has been received and your account updated.' },
+            },
+          };
+          if (company?.stripe_account_id) {
+            linkParams.application_fee_amount = Math.round(linkAmount * 100 * 0.50);
+          }
+
+          const paymentLink = await stripe.paymentLinks.create(linkParams, stripeOpts);
+
+          // Persist the link
+          const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
+          await supabase.from('payment_links').insert({
+            debtor_id:              debtor.id,
+            company_id:             targetCompanyId,
+            stripe_payment_link_id: paymentLink.id,
+            url:                    paymentLink.url,
+            amount:                 linkAmount,
+            description:            `Recovery - ${companyName}`,
+            status:                 'active',
+            expires_at:             expiresAt.toISOString(),
+          });
+
+          replyText += `\n${paymentLink.url}`;
+        } catch (linkErr) {
+          console.error('SMS payment link generation error:', linkErr);
+          // Still send the message without the link; agent can follow up
+        }
+      }
+
+      // Cap at 480 chars for SMS
+      replyText = replyText.slice(0, 480).trim();
 
       await supabase.from('conversations').insert({
         debtor_id:  debtor.id,
@@ -105,7 +307,14 @@ router.post('/inbound/sms', async (req, res) => {
       return res.type('text/xml').send(xmlReply(replyText));
     }
 
-    // AI is paused — send no auto-reply
+    // AI is paused — still store the inbound message, but send no auto-reply
+    await supabase.from('conversations').insert({
+      debtor_id:  debtor.id,
+      company_id: companyId,
+      channel:    'sms',
+      direction:  'inbound',
+      content:    body,
+    });
     res.type('text/xml').send(xmlReply(''));
   } catch (err) {
     console.error('Inbound SMS webhook error:', err);
