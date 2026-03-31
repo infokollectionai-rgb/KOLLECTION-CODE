@@ -24,10 +24,36 @@ const FRENCH_AREA_CODES = ['514', '438', '450', '579', '418', '581', '819', '873
 
 function detectLanguage(phone) {
   if (!phone) return 'en';
-  // Strip +1 prefix to get area code
   const digits = phone.replace(/\D/g, '');
   const areaCode = digits.startsWith('1') ? digits.slice(1, 4) : digits.slice(0, 3);
   return FRENCH_AREA_CODES.includes(areaCode) ? 'fr' : 'en';
+}
+
+function buildFirstContactMessage(debtor, company) {
+  const firstName   = debtor.first_name ?? debtor.name?.split(' ')[0] ?? 'Client';
+  const agentName   = company.voice_agent_name ?? company.company_name ?? 'Alex';
+  const companyName = company.company_name ?? 'Collections';
+  const lang        = detectLanguage(debtor.phone);
+
+  if (lang === 'fr') {
+    return `Bonjour ${firstName}! C'est ${agentName} de ${companyName}. J'ai une bonne nouvelle concernant votre dossier de prêt avec nous. On a quelque chose d'intéressant à vous proposer. Vous avez deux minutes?`;
+  }
+  return `Hey ${firstName}! It's ${agentName} from ${companyName}. I've got some good news regarding your loan file with us. We have something interesting to offer you. Got a couple minutes?`;
+}
+
+function postProcessMessage(text) {
+  let cleaned = text;
+  // Remove formal titles
+  cleaned = cleaned.replace(/\bM\.\/?Mme\s*/g, '');
+  cleaned = cleaned.replace(/\bMr\.\/?Mrs\.\s*/g, '');
+  cleaned = cleaned.replace(/\bM\.\s+/g, '');
+  cleaned = cleaned.replace(/\bMme\s+/g, '');
+  cleaned = cleaned.replace(/\bMr\.\s+/g, '');
+  cleaned = cleaned.replace(/\bMrs\.\s+/g, '');
+  cleaned = cleaned.replace(/\bMs\.\s+/g, '');
+  // Clean up double spaces
+  cleaned = cleaned.replace(/  +/g, ' ').trim();
+  return cleaned;
 }
 
 function getStage(daysOverdue, brokenPromiseCount) {
@@ -110,43 +136,45 @@ async function generateAiMessage(debtor, company, channel) {
   const companyName = company.company_name ?? 'Collections';
   const agentName   = company.voice_agent_name ?? 'Alex';
   const firstName   = debtor.first_name ?? debtor.name?.split(' ')[0] ?? 'Client';
-  const lastName    = debtor.name?.split(' ').slice(1).join(' ') ?? '';
   const lang        = detectLanguage(debtor.phone);
 
-  const debtorGreeting = lastName
-    ? (lang === 'fr' ? `M./Mme ${lastName}` : `Mr./Mrs. ${lastName}`)
-    : firstName;
+  // NOTE: This function is ONLY called for layer 2+ messages.
+  // Layer 1 uses the hardcoded template via buildFirstContactMessage().
 
   const systemPrompt = lang === 'fr'
-    ? 'Tu es un spécialiste de recouvrement. Tu écris des SMS conversationnels et courts. Tu ne parles jamais comme un robot corporatif.'
-    : 'You are a debt recovery specialist. You write short, conversational SMS messages. You never sound like a corporate robot.';
+    ? `Tu es ${agentName}, un spécialiste de résolution de dettes chez ${companyName}. Tu écris des SMS conversationnels et courts. Tu ne parles jamais comme un robot corporatif. Tu utilises TOUJOURS le PRÉNOM seulement — JAMAIS M./Mme, Mr./Mrs., ou tout titre formel.`
+    : `You are ${agentName}, a debt resolution specialist at ${companyName}. You write short, conversational SMS messages. You never sound like a corporate robot. You ALWAYS use FIRST NAME only — NEVER M./Mme, Mr./Mrs., or any formal title.`;
 
   let userPrompt;
 
   if (lang === 'fr') {
-    userPrompt = `Tu es ${agentName} de ${companyName}. Tu contactes ${firstName} ${debtorGreeting} par ${channel === 'sms' ? 'SMS' : 'courriel'} pour la première fois. Son solde impayé est de ${amount.toFixed(2)}$. Son numéro est ${debtor.phone ?? 'inconnu'}.
+    userPrompt = `Tu es ${agentName} de ${companyName}. Tu fais un suivi avec ${firstName} par ${channel === 'sms' ? 'SMS' : 'courriel'}. Son solde est de ${amount.toFixed(2)}$.
 
-Écris UN SEUL ${channel === 'sms' ? 'SMS' : 'courriel'} de premier contact. Le message DOIT:
-- Commencer par: Bonjour ${debtorGreeting}, ici ${agentName} de ${companyName}.
-- Mentionner le solde exact de ${amount.toFixed(2)}$
-- Offrir deux options: entente de paiement flexible OU rabais pour fermer le dossier
-- Finir par quelque chose de conversationnel comme "Faites-moi signe!"
+Écris UN SEUL ${channel === 'sms' ? 'SMS' : 'courriel'} de suivi. Le message DOIT:
+- Utiliser le PRÉNOM "${firstName}" seulement — JAMAIS M./Mme ou tout titre formel
+- Mentionner le solde de ${amount.toFixed(2)}$
+- Offrir deux options: entente de paiement très flexible OU rabais intéressant pour fermer le dossier
+- Être conversationnel et chaleureux
 - Être entièrement en FRANÇAIS
 - Faire MOINS de 300 caractères
-- Ne JAMAIS dire "contactez-nous", "répondez à ce message", "Reply YES", "Répondez OUI"
+- Ne JAMAIS dire "contactez-nous", "répondez à ce message", "Reply YES", "Répondez OUI", "impayé", "souffrance"
+
+Exemple: "Merci de répondre ${firstName}! Donc concernant votre solde de ${amount.toFixed(2)}$ avec ${companyName}, on a deux options pour vous: une entente de paiement très flexible ou bien un rabais intéressant pour fermer le dossier une fois pour toutes. Qu'est-ce qui marcherait le mieux pour vous?"
 
 Écris SEULEMENT le ${channel === 'sms' ? 'SMS' : 'courriel'}, rien d'autre.`;
   } else {
-    userPrompt = `You are ${agentName} from ${companyName}. You are contacting ${firstName} ${debtorGreeting} by ${channel === 'sms' ? 'SMS' : 'email'} for the first time. Their unpaid balance is $${amount.toFixed(2)}. Their number is ${debtor.phone ?? 'unknown'}.
+    userPrompt = `You are ${agentName} from ${companyName}. You are following up with ${firstName} by ${channel === 'sms' ? 'SMS' : 'email'}. Their balance is $${amount.toFixed(2)}.
 
-Write ONE ${channel === 'sms' ? 'SMS' : 'email'} first contact message. The message MUST:
-- Start with: Hi ${debtorGreeting}, this is ${agentName} from ${companyName}.
-- Mention the exact balance of $${amount.toFixed(2)}
-- Offer two options: flexible payment plan OR discount to close the account
-- End with something conversational like "Let me know!"
+Write ONE ${channel === 'sms' ? 'SMS' : 'email'} follow-up message. The message MUST:
+- Use FIRST NAME "${firstName}" only — NEVER Mr./Mrs. or any formal title
+- Mention the balance of $${amount.toFixed(2)}
+- Offer two options: very flexible payment plan OR interesting discount to close the file
+- Be conversational and warm
 - Be entirely in ENGLISH
 - Be UNDER 300 characters
-- NEVER say "contact us", "call us", "Reply YES", "opt out"
+- NEVER say "contact us", "call us", "Reply YES", "opt out", "overdue", "unpaid"
+
+Example: "Thanks for getting back ${firstName}! So regarding your $${amount.toFixed(2)} balance with ${companyName}, we've got two options for you: a very flexible payment plan or an interesting discount to close the file once and for all. What would work best for you?"
 
 Write ONLY the ${channel === 'sms' ? 'SMS' : 'email'}, nothing else.`;
   }
@@ -158,20 +186,20 @@ Write ONLY the ${channel === 'sms' ? 'SMS' : 'email'}, nothing else.`;
       system:     systemPrompt,
       messages:   [{ role: 'user', content: userPrompt }],
     });
-    return (response.content[0]?.text ?? '').trim();
+    return postProcessMessage((response.content[0]?.text ?? '').trim());
   } catch (err) {
     console.error('[worker] AI message generation failed:', err.message);
-    // Fallback static messages — conversational style
+    // Fallback static messages — first name only, no formal titles
     if (lang === 'fr') {
       if (channel === 'sms') {
-        return `Bonjour ${debtorGreeting}, ici ${agentName} de ${companyName}. Je vous contacte par rapport à votre solde impayé de ${amount.toFixed(2)}$. Entente flexible ou rabais pour fermer le dossier? Faites-moi signe!`;
+        return `Salut ${firstName}, c'est ${agentName} de ${companyName}. Concernant votre solde de ${amount.toFixed(2)}$, on a deux options: entente flexible ou rabais pour fermer le dossier. Qu'est-ce qui marcherait le mieux pour vous?`;
       }
-      return `Bonjour ${debtorGreeting},\n\nIci ${agentName} de ${companyName}. Je vous contacte par rapport à votre solde impayé de ${amount.toFixed(2)}$.\n\nOn aimerait trouver une solution avec vous. Entente flexible ou rabais pour fermer le dossier?\n\nFaites-moi signe!\n\n${agentName}\n${companyName}`;
+      return `Bonjour ${firstName},\n\nC'est ${agentName} de ${companyName}. Concernant votre solde de ${amount.toFixed(2)}$, on a deux options pour vous: une entente de paiement très flexible ou un rabais intéressant pour fermer le dossier.\n\nQu'est-ce qui marcherait le mieux pour vous?\n\n${agentName}\n${companyName}`;
     }
     if (channel === 'sms') {
-      return `Hi ${debtorGreeting}, this is ${agentName} from ${companyName}. I'm reaching out about your unpaid balance of $${amount.toFixed(2)}. Flexible payment plan or settle at a discount? Let me know!`;
+      return `Hey ${firstName}, it's ${agentName} from ${companyName}. Regarding your $${amount.toFixed(2)} balance, we've got two options: a flexible payment plan or a discount to close the file. What works best for you?`;
     }
-    return `Hi ${debtorGreeting},\n\nThis is ${agentName} from ${companyName}. I'm reaching out about your unpaid balance of $${amount.toFixed(2)}.\n\nWould you prefer a flexible payment plan or settle at a discount?\n\nLet me know!\n\n${agentName}\n${companyName}`;
+    return `Hey ${firstName},\n\nIt's ${agentName} from ${companyName}. Regarding your $${amount.toFixed(2)} balance, we've got two options for you: a very flexible payment plan or an interesting discount to close the file.\n\nWhat would work best for you?\n\n${agentName}\n${companyName}`;
   }
 }
 
@@ -348,16 +376,22 @@ async function processScheduledContacts() {
       const company = companyCache[contact.company_id];
 
       // 6. Generate message and send
+      // Layer 1 = hardcoded curiosity hook (NO AI). Layer 2+ = AI generation.
       // Payment links are NOT generated for outreach messages.
-      // They are only created when the debtor agrees to an amount during conversation.
       let result;
 
+      console.log('[worker] Using', contact.layer === 1 ? 'HARDCODED template' : 'AI generation', 'for debtor', debtor.id, 'layer', contact.layer);
+
       if (contact.channel === 'sms') {
-        const message = await generateAiMessage(debtor, company, 'sms');
+        const message = contact.layer === 1
+          ? buildFirstContactMessage(debtor, company)
+          : await generateAiMessage(debtor, company, 'sms');
         result = await sendSms(debtor, company, message);
 
       } else if (contact.channel === 'email') {
-        const message = await generateAiMessage(debtor, company, 'email');
+        const message = contact.layer === 1
+          ? buildFirstContactMessage(debtor, company)
+          : await generateAiMessage(debtor, company, 'email');
         result = await sendEmail(debtor, company, message);
 
       } else if (contact.channel === 'call') {
