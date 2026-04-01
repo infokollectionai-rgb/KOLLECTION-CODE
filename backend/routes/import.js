@@ -33,22 +33,31 @@ function normalizePhone(raw) {
   return digits ? `+${digits}` : null;
 }
 
+function parseAmount(raw) {
+  if (raw == null) return 0;
+  // Strip $, spaces, commas — handle "$1,350.00", "1 350,50", etc.
+  const cleaned = String(raw).replace(/[$\s,]/g, '').replace(/,/g, '.');
+  const val = parseFloat(cleaned);
+  return isNaN(val) ? 0 : val;
+}
+
 function rowToAccount(row, i) {
   return {
-    rowIndex:   i + 2,
-    firstName:  (row['First Name']        ?? '').toString().trim(),
-    lastName:   (row['Last Name']         ?? '').toString().trim(),
-    fullName:   `${row['First Name'] ?? ''} ${row['Last Name'] ?? ''}`.trim(),
-    phone:      normalizePhone(row['Phone Number']?.toString()),
-    email:      row['Email Address']?.toString().trim()       || null,
-    address:    (row['Full Address']       ?? '').toString().trim(),
-    city:       (row['City']               ?? '').toString().trim(),
-    province:   (row['Province / State']   ?? '').toString().trim(),
-    postal:     row['Postal / Zip Code']?.toString().trim()   || null,
-    amount:     parseFloat(row['Amount Owed'])                || 0,
-    daysOverdue: parseInt(row['Days Overdue'], 10)            || 0,
-    loanType:   (row['Loan Type']          ?? 'Personal').toString().trim(),
-    notes:      row['Notes']?.toString().trim()               || null,
+    rowIndex:    i + 2,
+    firstName:   (row['First Name']        ?? '').toString().trim(),
+    lastName:    (row['Last Name']         ?? '').toString().trim(),
+    fullName:    `${row['First Name'] ?? ''} ${row['Last Name'] ?? ''}`.trim(),
+    phone:       normalizePhone(row['Phone Number']?.toString()),
+    email:       row['Email Address']?.toString().trim()       || null,
+    address:     (row['Full Address']       ?? '').toString().trim(),
+    city:        (row['City']               ?? '').toString().trim(),
+    province:    (row['Province / State']   ?? '').toString().trim(),
+    postal:      row['Postal / Zip Code']?.toString().trim()   || null,
+    amount:      parseAmount(row['Amount Owed']),
+    daysOverdue: parseInt(row['Days Overdue'], 10)             || 0,
+    loanType:    (row['Loan Type']          ?? 'Personal').toString().trim(),
+    notes:       row['Notes']?.toString().trim()               || null,
+    language:    (row['Language'] ?? row['Langue'] ?? '').toString().trim().toLowerCase() || null,
   };
 }
 
@@ -154,11 +163,11 @@ async function processImportAsync(importId, accounts, companyId) {
 
     const debtorRows = batch.map(acc => {
       const tier   = calculateTier(acc.daysOverdue ?? acc.days_overdue ?? 0);
-      const amount = acc.amount ?? 0;
+      const amount = typeof acc.amount === 'number' ? acc.amount : parseAmount(acc.amount);
       const firstName = acc.firstName ?? acc.first_name ?? '';
       const lastName  = acc.lastName  ?? acc.last_name  ?? '';
       const name      = acc.fullName  ?? acc.full_name  ?? `${firstName} ${lastName}`.trim();
-      return {
+      const row = {
         company_id:    companyId,
         name,
         first_name:    firstName,
@@ -170,6 +179,12 @@ async function processImportAsync(importId, accounts, companyId) {
         tier,
         import_job_id: importId,
       };
+      // Add language if present (from CSV "Language"/"Langue" column)
+      const lang = acc.language ?? acc.langue ?? null;
+      if (lang && (lang === 'fr' || lang === 'en' || lang === 'french' || lang === 'français')) {
+        row.language = (lang === 'french' || lang === 'français' || lang === 'fr') ? 'fr' : 'en';
+      }
+      return row;
     });
 
     const { data: inserted, error } = await supabase

@@ -45,7 +45,18 @@ app.post('/calls/initiate', agentsRouter.initiateVoiceCall);
 // Called by Railway cron or n8n every 15 minutes
 const { processScheduledContacts } = require('./services/worker');
 
+let lastCronRun = 0;
 app.get('/cron/process', async (req, res) => {
+  const now = Date.now();
+  console.log(`[cron] /cron/process called at ${new Date(now).toISOString()}`);
+
+  // Rate limit: max once per 60 seconds
+  if (now - lastCronRun < 60_000) {
+    const waitSec = Math.ceil((60_000 - (now - lastCronRun)) / 1000);
+    return res.status(429).json({ error: `Rate limited. Try again in ${waitSec}s.` });
+  }
+  lastCronRun = now;
+
   try {
     const result = await processScheduledContacts();
     res.json({ success: true, ...result });

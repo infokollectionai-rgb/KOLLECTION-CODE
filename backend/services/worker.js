@@ -22,7 +22,11 @@ const FRENCH_AREA_CODES = ['514', '438', '450', '579', '418', '581', '819', '873
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function detectLanguage(phone) {
+function detectLanguage(debtor) {
+  // Use explicit language field if set on debtor record
+  if (debtor?.language === 'fr' || debtor?.language === 'en') return debtor.language;
+  // Fallback to phone area code detection
+  const phone = typeof debtor === 'string' ? debtor : debtor?.phone;
   if (!phone) return 'en';
   const digits = phone.replace(/\D/g, '');
   const areaCode = digits.startsWith('1') ? digits.slice(1, 4) : digits.slice(0, 3);
@@ -33,7 +37,7 @@ function buildFirstContactMessage(debtor, company) {
   const firstName   = debtor.first_name ?? debtor.name?.split(' ')[0] ?? 'Client';
   const agentName   = company.voice_agent_name ?? company.company_name ?? 'Alex';
   const companyName = company.company_name ?? 'Collections';
-  const lang        = detectLanguage(debtor.phone);
+  const lang        = detectLanguage(debtor);
 
   if (lang === 'fr') {
     return `Bonjour ${firstName}! C'est ${agentName} de ${companyName}. J'ai une bonne nouvelle concernant votre dossier de prêt avec nous. On a quelque chose d'intéressant à vous proposer. Vous avez deux minutes?`;
@@ -136,7 +140,7 @@ async function generateAiMessage(debtor, company, channel) {
   const companyName = company.company_name ?? 'Collections';
   const agentName   = company.voice_agent_name ?? 'Alex';
   const firstName   = debtor.first_name ?? debtor.name?.split(' ')[0] ?? 'Client';
-  const lang        = detectLanguage(debtor.phone);
+  const lang        = detectLanguage(debtor);
 
   // NOTE: This function is ONLY called for layer 2+ messages.
   // Layer 1 uses the hardcoded template via buildFirstContactMessage().
@@ -232,7 +236,7 @@ async function sendSms(debtor, company, message) {
   }
 }
 
-async function sendEmail(debtor, company, message) {
+async function sendEmail(debtor, company, message, { paymentLinkUrl, layer } = {}) {
   const apiKey   = company._decrypted_sendgrid_api_key ?? process.env.SENDGRID_API_KEY;
   const fromAddr = company.sendgrid_from_email ?? process.env.SENDGRID_FROM_EMAIL;
   const fromName = company.sendgrid_from_name ?? company.company_name ?? 'Collections';
@@ -241,13 +245,42 @@ async function sendEmail(debtor, company, message) {
   sgMail.setApiKey(apiKey);
 
   const companyName = company.company_name ?? 'Collections';
-  const subject     = `Account Notice — ${companyName}`;
+  const lang        = detectLanguage(debtor);
+
+  const subject = lang === 'fr'
+    ? `${companyName} - Information importante concernant votre dossier`
+    : `${companyName} - Important information regarding your file`;
+
+  // Build payment button HTML (only for layer > 1 when a link is available)
+  const paymentButton = (layer > 1 && paymentLinkUrl)
+    ? `<div style="text-align:center;margin:24px 0;">
+        <a href="${paymentLinkUrl}" style="display:inline-block;background:#2563EB;color:#ffffff;font-size:16px;font-weight:bold;padding:14px 32px;border-radius:8px;text-decoration:none;">
+          ${lang === 'fr' ? 'PAYER MAINTENANT' : 'PAY NOW'}
+        </a>
+      </div>`
+    : '';
 
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <p>${message.replace(/\n/g, '<br>')}</p>
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f4f4f5;">
+  <div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;margin-top:24px;margin-bottom:24px;">
+    <div style="background:#1e293b;padding:24px;text-align:center;">
+      <h1 style="color:#ffffff;margin:0;font-size:22px;">${companyName}</h1>
     </div>
-  `.trim();
+    <div style="padding:32px 24px;">
+      <p style="font-size:15px;line-height:1.6;color:#374151;margin:0 0 16px;">
+        ${message.replace(/\n/g, '<br>')}
+      </p>
+      ${paymentButton}
+    </div>
+    <div style="background:#f8fafc;padding:16px 24px;text-align:center;border-top:1px solid #e2e8f0;">
+      <p style="font-size:12px;color:#94a3b8;margin:0;">${companyName}</p>
+    </div>
+  </div>
+</body>
+</html>`.trim();
 
   const [result] = await sgMail.send({
     to:      debtor.email,
@@ -303,7 +336,7 @@ async function processScheduledContacts() {
       // 2. Fetch debtor
       const { data: debtor, error: debtorError } = await supabase
         .from('debtors')
-        .select('id, name, first_name, phone, email, amount, floor_amount, tier, days_overdue, cease_desist, broken_promise_count')
+        .select('id, name, first_name, phone, email, amount, floor_amount, tier, days_overdue, cease_desist, broken_promise_count, language')
         .eq('id', contact.debtor_id)
         .single();
 
@@ -392,7 +425,7 @@ async function processScheduledContacts() {
         const message = contact.layer === 1
           ? buildFirstContactMessage(debtor, company)
           : await generateAiMessage(debtor, company, 'email');
-        result = await sendEmail(debtor, company, message);
+        result = await sendEmail(debtor, company, message, { layer: contact.layer });
 
       } else if (contact.channel === 'call') {
         result = await initiateCall(debtor, company);
