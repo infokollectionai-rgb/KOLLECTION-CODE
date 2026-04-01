@@ -237,7 +237,8 @@ async function sendSms(debtor, company, message) {
 }
 
 async function sendEmail(debtor, company, message, { paymentLinkUrl, layer } = {}) {
-  const apiKey   = company._decrypted_sendgrid_api_key ?? process.env.SENDGRID_API_KEY;
+  // TODO: revert to company._decrypted_sendgrid_api_key once encryption is fixed
+  const apiKey   = process.env.SENDGRID_API_KEY;
   const fromAddr = company.sendgrid_from_email ?? process.env.SENDGRID_FROM_EMAIL;
   const fromName = company.sendgrid_from_name ?? company.company_name ?? 'Collections';
   if (!apiKey || !fromAddr) throw new Error('SendGrid credentials not configured');
