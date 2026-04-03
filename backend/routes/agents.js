@@ -5,11 +5,15 @@ const twilio     = require('twilio');
 const sgMail     = require('@sendgrid/mail');
 const { v4: uuidv4 } = require('uuid');
 
+const Stripe     = require('stripe');
+
 const supabase                 = require('../database/supabase');
 const { checkContactAllowed }  = require('../middleware/compliance');
 const { decrypt }              = require('../utils/encryption');
+const { generatePaymentLink, buildVoiceSystemPrompt } = require('../services/worker');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const stripe    = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // TODO: restore requireAuth on all endpoints once frontend and backend share the same Supabase project.
 
@@ -612,17 +616,43 @@ async function initiateVoiceCall(req, res) {
     if (!vapiKey) return res.status(400).json({ error: 'VAPI not configured for this company' });
 
     const debtorFirstName = debtorName?.split(' ')[0] ?? '';
+    const resolvedCompanyName = companyName ?? creds.company_name ?? 'Collections';
+    const resolvedAmount = amount ?? 0;
+    const discountAmount = Number(resolvedAmount * 0.70).toFixed(2);
+    const paymentAmount  = Math.round(resolvedAmount * 0.7 / 8);
+
+    // Detect language from phone area code
+    const FRENCH_AREA_CODES = ['514', '438', '450', '579', '418', '581', '819', '873'];
+    const phoneDigits = (phone ?? '').replace(/\D/g, '');
+    const areaCode    = phoneDigits.startsWith('1') ? phoneDigits.slice(1, 4) : phoneDigits.slice(0, 3);
+    const lang        = FRENCH_AREA_CODES.includes(areaCode) ? 'fr' : 'en';
 
     const payload = {
       assistantId,
       customer: { number: phone },
       assistantOverrides: {
+        firstMessage: lang === 'fr'
+          ? `Bonjour, est-ce que je parle bien à ${debtorFirstName}?`
+          : `Hi, am I speaking with ${debtorFirstName}?`,
+        model: {
+          provider: 'anthropic',
+          model:    'claude-sonnet-4-20250514',
+          systemPrompt: buildVoiceSystemPrompt({
+            firstName:      debtorFirstName,
+            agentName,
+            companyName:    resolvedCompanyName,
+            amount:         resolvedAmount,
+            discountAmount,
+            paymentAmount,
+            lang,
+          }),
+        },
         variableValues: {
           debtorFirstName,
-          companyName:  companyName ?? creds.company_name ?? '',
-          amountOwed:   amount ?? 0,
+          companyName:  resolvedCompanyName,
+          amountOwed:   resolvedAmount,
           agentName,
-          language:     'English', // default; caller can override
+          language:     lang === 'fr' ? 'French' : 'English',
         },
       },
       metadata: {
@@ -691,20 +721,90 @@ router.post('/voice/webhook', async (req, res) => {
             ? Math.round((new Date(endedAt) - new Date(startedAt)) / 1000)
             : null;
 
+        const outcome = analysis?.successEvaluation ?? null;
+
         await supabase.from('call_transcripts').insert({
           call_id:    callId,
           debtor_id:  debtorId,
           company_id: companyId,
           transcript,
           summary,
-          outcome:    analysis?.successEvaluation ?? null,
+          outcome,
           duration,
         });
 
         await supabase
           .from('contact_attempts')
-          .update({ status: 'completed', metadata: { call_id: callId, summary } })
+          .update({ status: 'completed', metadata: { call_id: callId, summary, outcome } })
           .eq('metadata->>call_id', callId);
+
+        // Log call transcript as a conversation entry
+        if (summary) {
+          await supabase.from('conversations').insert({
+            debtor_id:  debtorId,
+            company_id: companyId,
+            channel:    'call',
+            direction:  'outbound',
+            content:    summary,
+            metadata:   { call_id: callId, duration, outcome },
+          });
+        }
+
+        // If call indicates agreement, generate payment link and send via SMS
+        const agreed = outcome === 'true' || outcome === true
+          || (summary && /accept|agree|deal|parfait|ok.*paiement|envoie.*lien/i.test(summary));
+
+        if (agreed) {
+          console.log(`[voice:webhook] Agreement detected for debtor ${debtorId}, sending payment link`);
+          try {
+            const { data: debtor } = await supabase
+              .from('debtors')
+              .select('id, name, first_name, phone, amount')
+              .eq('id', debtorId)
+              .single();
+
+            if (debtor && debtor.phone && debtor.amount > 0) {
+              const linkUrl = await generatePaymentLink(debtor, companyId);
+
+              if (linkUrl) {
+                // Detect language for SMS
+                const FRENCH_AREA_CODES = ['514', '438', '450', '579', '418', '581', '819', '873'];
+                const phoneDigits = (debtor.phone ?? '').replace(/\D/g, '');
+                const areaCode = phoneDigits.startsWith('1') ? phoneDigits.slice(1, 4) : phoneDigits.slice(0, 3);
+                const lang = FRENCH_AREA_CODES.includes(areaCode) ? 'fr' : 'en';
+                const firstName = debtor.first_name || debtor.name?.split(' ')[0] || '';
+
+                const smsBody = lang === 'fr'
+                  ? `${firstName}, tel que convenu lors de notre appel, voici votre lien de paiement: ${linkUrl}`
+                  : `${firstName}, as discussed on our call, here's your payment link: ${linkUrl}`;
+
+                // Send SMS via Twilio
+                const creds = await getCompanyCreds(companyId);
+                const sid   = creds.twilio_account_sid ?? process.env.TWILIO_ACCOUNT_SID;
+                const token = creds.twilio_auth_token  ?? process.env.TWILIO_AUTH_TOKEN;
+                const from  = process.env.TWILIO_DEFAULT_NUMBER || '+14389050764';
+
+                if (sid && token) {
+                  const twilioClient = twilio(sid, token);
+                  await twilioClient.messages.create({ body: smsBody, from, to: debtor.phone });
+
+                  await supabase.from('conversations').insert({
+                    debtor_id:  debtorId,
+                    company_id: companyId,
+                    channel:    'sms',
+                    direction:  'outbound',
+                    content:    smsBody,
+                    metadata:   { source: 'post_call_payment_link', call_id: callId },
+                  });
+
+                  console.log(`[voice:webhook] Payment link SMS sent to debtor ${debtorId}: ${linkUrl}`);
+                }
+              }
+            }
+          } catch (linkErr) {
+            console.error(`[voice:webhook] Post-call payment link error for debtor ${debtorId}:`, linkErr.message);
+          }
+        }
       }
     }
 
