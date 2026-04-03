@@ -18,6 +18,34 @@ const stripe    = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 const BATCH_SIZE = 50;
 
+/**
+ * Safely decrypt a value — only if it looks encrypted (ivHex:ciphertextHex format).
+ * Returns raw value if it's already plaintext (e.g. a VAPI key starting with a normal prefix).
+ */
+function safeDecrypt(value) {
+  if (!value) return null;
+  // Encrypted format is "hexIV:hexCiphertext" — both parts are hex strings
+  if (/^[0-9a-fA-F]{32}:[0-9a-fA-F]+$/.test(value)) {
+    try { return decrypt(value); } catch { return value; }
+  }
+  return value;
+}
+
+/**
+ * Check if current time is within contact hours (8AM–8PM Eastern).
+ * Returns { allowed, nextWindow } where nextWindow is the next 10AM ET if outside hours.
+ */
+function isWithinContactHours() {
+  const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const hour = nowET.getHours();
+  if (hour >= 8 && hour < 20) return { allowed: true };
+  // Next 10AM ET
+  const next = new Date(nowET);
+  if (hour >= 20) next.setDate(next.getDate() + 1);
+  next.setHours(10, 0, 0, 0);
+  return { allowed: false, nextWindow: next };
+}
+
 const FRENCH_AREA_CODES = ['514', '438', '450', '579', '418', '581', '819', '873'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -294,9 +322,69 @@ async function sendEmail(debtor, company, message, { paymentLinkUrl, layer } = {
 }
 
 async function initiateCall(debtor, company) {
-  // VAPI call initiation — placeholder for now, logs the attempt
-  console.log(`[worker] CALL placeholder: debtor=${debtor.id}, phone=${debtor.phone}, company=${company.id}`);
-  return { status: 'logged', note: 'VAPI call integration pending' };
+  // Contact hours check: only call 8AM–8PM Eastern
+  const hours = isWithinContactHours();
+  if (!hours.allowed) {
+    console.log(`[worker:call] Outside contact hours for debtor ${debtor.id}, rescheduling to ${hours.nextWindow.toISOString()}`);
+    return { status: 'rescheduled', scheduledFor: hours.nextWindow.toISOString() };
+  }
+
+  const vapiKey     = company._decrypted_vapi_api_key ?? process.env.VAPI_API_KEY;
+  const assistantId = company._decrypted_vapi_assistant_id ?? process.env.VAPI_ASSISTANT_ID;
+
+  if (!vapiKey) {
+    console.error(`[worker:call] VAPI API key not configured for company ${company.id}`);
+    throw new Error('VAPI API key not configured');
+  }
+
+  const firstName   = debtor.first_name || debtor.name?.split(' ')[0] || 'Client';
+  const companyName = company.company_name || 'Collections';
+  const agentName   = company.voice_agent_name || 'Alex';
+  const lang        = detectLanguage(debtor);
+
+  const payload = {
+    assistantId,
+    customer: { number: debtor.phone },
+    assistantOverrides: {
+      variableValues: {
+        debtorFirstName: firstName,
+        companyName,
+        amountOwed:      debtor.amount ?? 0,
+        agentName,
+        language:        lang === 'fr' ? 'French' : 'English',
+      },
+    },
+    metadata: {
+      debtorId:  debtor.id,
+      companyId: company.id,
+    },
+  };
+
+  // Only include phoneNumberId if set in env
+  if (process.env.VAPI_PHONE_NUMBER_ID) {
+    payload.phoneNumberId = process.env.VAPI_PHONE_NUMBER_ID;
+  }
+
+  console.log(`[worker:call] Initiating VAPI call — debtor=${debtor.id}, phone=${debtor.phone}, assistant=${assistantId}`);
+
+  const vapiRes = await fetch('https://api.vapi.ai/call/phone', {
+    method:  'POST',
+    headers: {
+      Authorization:  `Bearer ${vapiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!vapiRes.ok) {
+    const errBody = await vapiRes.text().catch(() => '');
+    console.error(`[worker:call] VAPI error ${vapiRes.status}: ${errBody}`);
+    throw new Error(`VAPI call failed (${vapiRes.status}): ${errBody}`);
+  }
+
+  const callData = await vapiRes.json();
+  console.log(`[worker:call] VAPI call initiated — callId=${callData.id}, status=${callData.status}`);
+  return { status: 'initiated', call_id: callData.id, vapi_status: callData.status };
 }
 
 // ─── Main Worker ──────────────────────────────────────────────────────────────
@@ -388,7 +476,7 @@ async function processScheduledContacts() {
       if (!companyCache[contact.company_id]) {
         const { data: company, error: companyError } = await supabase
           .from('client_companies')
-          .select('id, company_name, business_phone, voice_agent_name, twilio_account_sid, twilio_auth_token, sendgrid_api_key, sendgrid_from_email, sendgrid_from_name')
+          .select('id, company_name, business_phone, voice_agent_name, twilio_account_sid, twilio_auth_token, sendgrid_api_key, sendgrid_from_email, sendgrid_from_name, vapi_api_key, vapi_assistant_id')
           .eq('id', contact.company_id)
           .single();
 
@@ -399,11 +487,13 @@ async function processScheduledContacts() {
           continue;
         }
 
-        // 4. Decrypt credentials
+        // 4. Decrypt credentials (safeDecrypt handles already-plaintext values)
         companyCache[contact.company_id] = {
           ...company,
-          _decrypted_twilio_auth_token: company.twilio_auth_token ? decrypt(company.twilio_auth_token) : null,
-          _decrypted_sendgrid_api_key:  company.sendgrid_api_key  ? decrypt(company.sendgrid_api_key)  : null,
+          _decrypted_twilio_auth_token: safeDecrypt(company.twilio_auth_token),
+          _decrypted_sendgrid_api_key:  safeDecrypt(company.sendgrid_api_key),
+          _decrypted_vapi_api_key:      safeDecrypt(company.vapi_api_key),
+          _decrypted_vapi_assistant_id:  safeDecrypt(company.vapi_assistant_id),
         };
       }
 
@@ -430,6 +520,16 @@ async function processScheduledContacts() {
 
       } else if (contact.channel === 'call') {
         result = await initiateCall(debtor, company);
+
+        // If call was rescheduled due to contact hours, update the scheduled_for and skip
+        if (result.status === 'rescheduled') {
+          await supabase
+            .from('scheduled_contacts')
+            .update({ scheduled_for: result.scheduledFor })
+            .eq('id', contact.id);
+          skipped++;
+          continue;
+        }
 
       } else {
         console.warn(`[worker] Unknown channel "${contact.channel}", skipping`);

@@ -26,6 +26,18 @@ async function resolveCompanyId(bodyCompanyId) {
   return firstCompany?.id ?? null;
 }
 
+/**
+ * Safely decrypt — only if value looks encrypted (ivHex:ciphertextHex).
+ * Returns raw value if already plaintext.
+ */
+function safeDecrypt(value) {
+  if (!value) return null;
+  if (/^[0-9a-fA-F]{32}:[0-9a-fA-F]+$/.test(value)) {
+    try { return decrypt(value); } catch { return value; }
+  }
+  return value;
+}
+
 async function getCompanyCreds(companyId) {
   const { data, error } = await supabase
     .from('client_companies')
@@ -35,9 +47,10 @@ async function getCompanyCreds(companyId) {
   if (error || !data) throw new Error('Company not found');
   return {
     ...data,
-    twilio_auth_token: data.twilio_auth_token ? decrypt(data.twilio_auth_token) : null,
-    sendgrid_api_key:  data.sendgrid_api_key  ? decrypt(data.sendgrid_api_key)  : null,
-    vapi_api_key:      data.vapi_api_key      ? decrypt(data.vapi_api_key)      : null,
+    twilio_auth_token: safeDecrypt(data.twilio_auth_token),
+    sendgrid_api_key:  safeDecrypt(data.sendgrid_api_key),
+    vapi_api_key:      safeDecrypt(data.vapi_api_key),
+    vapi_assistant_id: safeDecrypt(data.vapi_assistant_id),
   };
 }
 
@@ -574,6 +587,13 @@ async function initiateVoiceCall(req, res) {
     return res.status(400).json({ error: 'debtorId and phone are required' });
   }
 
+  // Contact hours check: 8AM–8PM Eastern
+  const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const hourET = nowET.getHours();
+  if (hourET < 8 || hourET >= 20) {
+    return res.status(400).json({ error: 'Outside contact hours (8AM–8PM ET). Try again during business hours.', code: 'OUTSIDE_HOURS' });
+  }
+
   const compliance = await checkContactAllowed(debtorId, 'call');
   if (!compliance.allowed) {
     return res.status(403).json({ error: compliance.reason, code: 'COMPLIANCE_BLOCK' });
@@ -591,31 +611,39 @@ async function initiateVoiceCall(req, res) {
 
     if (!vapiKey) return res.status(400).json({ error: 'VAPI not configured for this company' });
 
+    const debtorFirstName = debtorName?.split(' ')[0] ?? '';
+
+    const payload = {
+      assistantId,
+      customer: { number: phone },
+      assistantOverrides: {
+        variableValues: {
+          debtorFirstName,
+          companyName:  companyName ?? creds.company_name ?? '',
+          amountOwed:   amount ?? 0,
+          agentName,
+          language:     'English', // default; caller can override
+        },
+      },
+      metadata: {
+        debtorId,
+        companyId: resolvedCompanyId,
+        tier,
+      },
+    };
+
+    // Only include phoneNumberId if set in env
+    if (process.env.VAPI_PHONE_NUMBER_ID) {
+      payload.phoneNumberId = process.env.VAPI_PHONE_NUMBER_ID;
+    }
+
     const vapiRes = await fetch('https://api.vapi.ai/call/phone', {
       method:  'POST',
       headers: {
         Authorization:  `Bearer ${vapiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        assistantId,
-        customer: { number: phone, name: debtorName },
-        assistantOverrides: {
-          variableValues: {
-            debtorName,
-            debtorFirstName: debtorName?.split(' ')[0] ?? '',
-            amount:          amount ? `$${Number(amount).toFixed(2)}` : 'your outstanding balance',
-            companyName:     companyName ?? '',
-            agentName,
-            tier:            String(tier),
-          },
-        },
-        metadata: {
-          debtorId,
-          companyId: resolvedCompanyId,
-          tier,
-        },
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!vapiRes.ok) {
