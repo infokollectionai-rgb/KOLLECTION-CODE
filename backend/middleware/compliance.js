@@ -56,7 +56,7 @@ async function checkContactAllowed(debtorId, channel) {
   try {
     const { data: debtor, error } = await supabase
       .from('debtors')
-      .select('id, status, cease_desist, legal_hold, sms_opted_out, province')
+      .select('id, cease_desist, legal_threat_flag')
       .eq('id', debtorId)
       .single();
 
@@ -69,46 +69,23 @@ async function checkContactAllowed(debtorId, channel) {
       return { allowed: false, reason: 'Cease and desist on file — contact is prohibited' };
     }
 
-    // 2. Legal hold
-    if (debtor.legal_hold) {
-      return { allowed: false, reason: 'Debtor is under legal hold' };
+    // 2. Legal threat flag (debtor disputed / flagged for human review)
+    if (debtor.legal_threat_flag) {
+      return { allowed: false, reason: 'Debtor is flagged for legal review — contact blocked' };
     }
 
-    // 3. Account status
-    if (debtor.status === 'PAID') {
-      return { allowed: false, reason: 'Account is paid in full' };
-    }
-    if (debtor.status === 'removed') {
-      return { allowed: false, reason: 'Debtor has been removed from active collection' };
-    }
-    if (debtor.status === 'cease_desist') {
-      return { allowed: false, reason: 'Cease and desist — contact is prohibited' };
-    }
-
-    // 4. SMS opt-out
-    if (channel === 'sms' && debtor.sms_opted_out) {
-      return { allowed: false, reason: 'Debtor has opted out of SMS communications' };
-    }
-
-    // 5 & 6. Provincial time / Sunday restriction
-    const province = (debtor.province ?? 'ON').toUpperCase().trim();
-    const timezone = PROVINCE_TIMEZONES[province] ?? 'America/Toronto';
+    // 3. Contact hours: 8 am–9 pm Eastern (default timezone)
+    const timezone = 'America/Toronto';
     const { hour, weekday } = getLocalTime(timezone);
 
-    // Quebec: no contact on Sundays
-    if (province === 'QC' && weekday === 'sunday') {
-      return { allowed: false, reason: 'No contact permitted on Sundays in Quebec' };
-    }
-
-    // Permitted hours: 8 am–9 pm local time
     if (hour < CONTACT_START_HOUR || hour >= CONTACT_END_HOUR) {
       return {
         allowed: false,
-        reason: `Outside permitted contact hours for ${province} (8 am–9 pm local time, current: ${hour}:00)`,
+        reason: `Outside permitted contact hours (8 am–9 pm ET, current: ${hour}:00)`,
       };
     }
 
-    // 7. Weekly contact limit
+    // 4. Weekly contact limit
     const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const { count, error: countError } = await supabase
       .from('contact_attempts')
