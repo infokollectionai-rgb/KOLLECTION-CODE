@@ -383,12 +383,12 @@ async function sendEmail(debtor, company, message, { paymentLinkUrl, layer } = {
 }
 
 async function initiateCall(debtor, company) {
-  // Contact hours check: only call 8AM–8PM Eastern
-  const hours = isWithinContactHours();
-  if (!hours.allowed) {
-    console.log(`[worker:call] Outside contact hours for debtor ${debtor.id}, rescheduling to ${hours.nextWindow.toISOString()}`);
-    return { status: 'rescheduled', scheduledFor: hours.nextWindow.toISOString() };
-  }
+  // TODO: restore contact hours check before go-live
+  // const hours = isWithinContactHours();
+  // if (!hours.allowed) {
+  //   console.log(`[worker:call] Outside contact hours for debtor ${debtor.id}, rescheduling to ${hours.nextWindow.toISOString()}`);
+  //   return { status: 'rescheduled', scheduledFor: hours.nextWindow.toISOString() };
+  // }
 
   const vapiKey     = company._decrypted_vapi_api_key ?? process.env.VAPI_API_KEY;
   const assistantId = company._decrypted_vapi_assistant_id ?? process.env.VAPI_ASSISTANT_ID;
