@@ -74,7 +74,7 @@ function buildSmsBody({ debtorName, amount, companyName, agentName, tier }) {
   const amtStr  = amount ? `$${Number(amount).toFixed(2)}` : 'an outstanding balance';
   const urgency = tier >= 3 ? 'urgent ' : '';
   return (
-    `Hi ${first}, this is ${agentName ?? 'Alex'} from ${companyName}. ` +
+    `Hi ${first}, this is ${agentName ?? 'Sophie'} from ${companyName}. ` +
     `You have an ${urgency}outstanding balance of ${amtStr}. ` +
     `Please reply to discuss your repayment options. Reply STOP to opt out.`
   );
@@ -87,18 +87,18 @@ function buildEmailContent({ debtorName, amount, companyName, agentName, tier })
   const subject = `${urgency}Account Notice — ${companyName}`;
   const text =
     `Hi ${first},\n\n` +
-    `My name is ${agentName ?? 'Alex'} from ${companyName}. ` +
+    `My name is ${agentName ?? 'Sophie'} from ${companyName}. ` +
     `We are reaching out regarding your outstanding balance of ${amtStr}.\n\n` +
     `We want to work with you to find a resolution. Please reply to this email ` +
     `or contact us directly to discuss your repayment options.\n\n` +
-    `Sincerely,\n${agentName ?? 'Alex'}\n${companyName}`;
+    `Sincerely,\n${agentName ?? 'Sophie'}\n${companyName}`;
   const html =
     `<p>Hi ${first},</p>` +
-    `<p>My name is <strong>${agentName ?? 'Alex'}</strong> from <strong>${companyName}</strong>. ` +
+    `<p>My name is <strong>${agentName ?? 'Sophie'}</strong> from <strong>${companyName}</strong>. ` +
     `We are reaching out regarding your outstanding balance of <strong>${amtStr}</strong>.</p>` +
     `<p>We want to work with you to find a resolution. Please reply to this email ` +
     `or contact us directly to discuss your repayment options.</p>` +
-    `<p>Sincerely,<br>${agentName ?? 'Alex'}<br>${companyName}</p>`;
+    `<p>Sincerely,<br>${agentName ?? 'Sophie'}<br>${companyName}</p>`;
   return { subject, text, html };
 }
 
@@ -192,7 +192,7 @@ router.post('/negotiation/suggest', async (req, res) => {
     amount,
     floor,
     companyName,
-    agentName = 'Alex',
+    agentName = 'Sophie',
     companyId,
     paymentLinkUrl,
   } = req.body;
@@ -582,7 +582,7 @@ async function initiateVoiceCall(req, res) {
     phone,
     amount,
     companyName,
-    agentName = 'Alex',
+    agentName = 'Sophie',
     tier      = 1,
     companyId,
   } = req.body;
@@ -631,9 +631,7 @@ async function initiateVoiceCall(req, res) {
       assistantId,
       customer: { number: phone },
       assistantOverrides: {
-        firstMessage: lang === 'fr'
-          ? `Bonjour, est-ce que je parle bien à ${debtorFirstName}?`
-          : `Hi, am I speaking with ${debtorFirstName}?`,
+        firstMessage: `Bonjour, est-ce que je parle bien à ${debtorFirstName}? Hi, am I speaking with ${debtorFirstName}?`,
         model: {
           provider: 'anthropic',
           model:    'claude-sonnet-4-20250514',
