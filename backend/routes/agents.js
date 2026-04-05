@@ -591,12 +591,12 @@ async function initiateVoiceCall(req, res) {
     return res.status(400).json({ error: 'debtorId and phone are required' });
   }
 
-  // TODO: restore contact hours check before go-live
-  // const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
-  // const hourET = nowET.getHours();
-  // if (hourET < 8 || hourET >= 20) {
-  //   return res.status(400).json({ error: 'Outside contact hours (8AM–8PM ET). Try again during business hours.', code: 'OUTSIDE_HOURS' });
-  // }
+  // Contact hours check: 8AM–8PM Eastern
+  const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const hourET = nowET.getHours();
+  if (hourET < 8 || hourET >= 20) {
+    return res.status(400).json({ error: 'Outside contact hours (8AM–8PM ET). Try again during business hours.', code: 'OUTSIDE_HOURS' });
+  }
 
   const compliance = await checkContactAllowed(debtorId, 'call');
   if (!compliance.allowed) {
