@@ -38,7 +38,8 @@ function safeDecrypt(value) {
 function isWithinContactHours() {
   const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
   const hour = nowET.getHours();
-  if (hour >= 8 && hour < 20) return { allowed: true };
+  // TODO: restore 8-20 before go-live
+  if (hour >= 0 && hour < 23) return { allowed: true };
   // Next 10AM ET
   const next = new Date(nowET);
   if (hour >= 20) next.setDate(next.getDate() + 1);
