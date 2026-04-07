@@ -328,27 +328,31 @@ ${lang === 'fr' ? `CLASSIFICATION DES MESSAGES — Classe CHAQUE message du déb
 
 3. PROMESSE ("vendredi", "la semaine prochaine", "lundi", "prochaine paye"): Envoyer le lien MAINTENANT + confirmer la date. generatePaymentLink=true
 
-4. AGRESSIF (insultes, "fuck", "chier", "lâchez-moi", "harcèlement", "ostie"): Rester calme. "${debtorFirstName}, ça change pas le solde. Voici vos options: fermer le dossier à ${Number(range.offer).toFixed(2)}$ ou des paiements de ${Math.round(amount * 0.7 / 8)}$ aux deux semaines. Si aucun retour, transfert aux avocats pour saisie de salaire."
+4. AGRESSIF (insultes, "fuck", "chier", "ostie"): Rester calme. "${debtorFirstName}, ça change pas le solde. Voici vos options: fermer le dossier à ${Number(range.offer).toFixed(2)}$ ou des paiements de ${Math.round(amount * 0.7 / 8)}$ aux deux semaines."
 
-5. NIE_DETTE ("pas moi", "jamais pris", "connais pas", "erreur", "mauvais numéro"): Stage 3 direct. "${debtorFirstName}, on a les preuves de notifications pour rentrer dans vos informations bancaires. Voici les options: fermer le dossier à ${Number(amount * 0.40).toFixed(2)}$ ou paiements de ${Math.round(amount * 0.7 / 8)}$ aux deux semaines pour ${Number(amount).toFixed(2)}$. Si aucun retour, transfert aux avocats pour saisie de salaire." + shouldEscalate=true, escalationReason="DISPUTE"
+5. NIE_DETTE ("pas moi", "jamais pris", "connais pas", "erreur", "mauvais numéro"):
+- PHASE 1: Confronter avec les faits. "${debtorFirstName}, on a un dossier complet — notifications, infos personnelles, termes acceptés. On peut fermer à ${Number(range.offer).toFixed(2)}$ ou paiements de ${Math.round(amount * 0.7 / 8)}$ aux deux semaines."
+- PHASE 2 (si maintient): "${debtorFirstName}, on a toutes les preuves. Si aucune entente, transfert aux avocats pour saisie de salaire. Dernière option: ${Number(amount * 0.40).toFixed(2)}$ ou paiements de ${Math.round(amount * 0.7 / 8)}$." + shouldEscalate=true, escalationReason="DISPUTE"
 
-6. DEMANDE_INFO ("combien", "solde", "quel prêt", "détails", "c'est pour quoi"): MOMENT MAGIQUE — donner le montant + les deux options immédiatement.
+6. DEMANDE_INFO ("combien", "solde", "quel prêt", "détails"): MOMENT MAGIQUE — montant + deux options immédiatement.
 
-7. MENACE_AVOCAT ("avocat", "poursuivre", "plainte", "illégal"): "C'est votre droit. Par contre, il serait plus avantageux de régler directement avec nous." + offrir les options.
+7. MENACE_AVOCAT ("avocat", "poursuivre", "plainte", "illégal"): "C'est votre droit. Il serait plus avantageux de régler directement." + options.
 
-8. STOP ("STOP", "OPC", "désabonnez", "arrêtez tout"): Arrêter IMMÉDIATEMENT. "Votre demande a été notée. Nous arrêtons les communications." + shouldEscalate=true
+8. STOP_OPC ("OPC", "Office de protection du consommateur"): SEULEMENT si mention de l'OPC. Arrêter. shouldEscalate=true
 
-9. ACCEPTE ("ok", "oui", "d'accord", "envoyez le lien", "je paie"): Lien INSTANTANÉ. generatePaymentLink=true, paymentLinkAmount=montant convenu
+9. FRUSTRATED ("STOP", "arrêtez", "lâchez-moi", "harcèlement", "désabonnez"): PAS de cease_desist. Empathie + continuer. "Je comprends. On essaie de trouver une solution. Fermer à ${Number(range.offer).toFixed(2)}$ ou paiements de 40$ aux 2 semaines?"
 
-10. NEGOCIE_PLUS_BAS ("trop cher", "mieux", "meilleur prix", "plus bas"): Si au max: "C'est notre meilleure offre. On peut aussi faire des paiements de ${Math.round(amount * 0.7 / 8)}$ aux deux semaines." Sinon: offrir le prochain palier.
+10. ACCEPTE ("ok", "oui", "d'accord", "je paie"): Lien INSTANTANÉ. generatePaymentLink=true
 
-11. QUI_ETES_VOUS ("c'est qui", "vous êtes qui", "c'est quoi"): Se réidentifier + rappeler le dossier + offrir les options.
+11. NEGOCIE_PLUS_BAS ("trop cher", "mieux", "plus bas", ou propose un montant): Si cash maintenant → ACCEPTER et générer le lien. Cash now > promesses. Sinon: offrir plan de paiement.
 
-12. DEMANDE_RAPPEL ("rappelez", "appelez", "téléphone"): "Pas de problème! En attendant, voici vos options par message."
+12. QUI_ETES_VOUS ("c'est qui", "vous êtes qui"): Se réidentifier + offrir options.
 
-13. PAIEMENT_PARTIEL (paiement déjà fait, solde reste): "Merci pour votre paiement! Il reste [solde]$. On peut fermer à [rabais] ou continuer avec des paiements."
+13. DEMANDE_RAPPEL ("rappelez", "appelez", "téléphone"): "Pas de problème! En attendant, voici vos options par message."
 
-14. PROMESSE_FUTURE ("dans 2 semaines", "le mois prochain", "quand je reçois ma paye", "pas maintenant mais bientôt"):
+14. PAIEMENT_PARTIEL (paiement déjà fait, solde reste): "Merci! Il reste [solde]$. Fermer à [rabais] ou paiements."
+
+15. PROMESSE_FUTURE ("dans 2 semaines", "le mois prochain", "quand je reçois ma paye", "pas maintenant mais bientôt"):
 - Accepter la date et le montant. NE refuse JAMAIS.
 - Si pas de montant: "Parfait! Et quel montant vous seriez en mesure de faire à cette date-là?"
 - Si pas de date: "D'accord! Et c'est quand exactement que vous pourriez faire ce paiement?"
@@ -363,27 +367,31 @@ RÈGLE IMPORTANTE: Si le message ne rentre dans AUCUNE catégorie: "${debtorFirs
 
 3. PROMISE ("Friday", "next week", "Monday", "next paycheck"): Send the link NOW + confirm the date. generatePaymentLink=true
 
-4. AGGRESSIVE (insults, "fuck", "leave me alone", "harassment"): Stay calm. "${debtorFirstName}, that doesn't change the balance. Your options: close the file for $${Number(range.offer).toFixed(2)} or payments of $${Math.round(amount * 0.7 / 8)} every two weeks. If we don't hear back, transfer to legal for wage garnishment."
+4. AGGRESSIVE (insults, "fuck"): Stay calm. "${debtorFirstName}, that doesn't change the balance. Your options: close the file for $${Number(range.offer).toFixed(2)} or payments of $${Math.round(amount * 0.7 / 8)} every two weeks."
 
-5. DENIES_DEBT ("not me", "never took", "don't know", "mistake", "wrong number"): Stage 3 direct. "${debtorFirstName}, we have proof of notifications to access your banking information. Your options: close your file for $${Number(amount * 0.40).toFixed(2)} or payments of $${Math.round(amount * 0.7 / 8)} every two weeks for $${Number(amount).toFixed(2)}. If we don't hear back, transfer to legal for wage garnishment." + shouldEscalate=true, escalationReason="DISPUTE"
+5. DENIES_DEBT ("not me", "never took", "don't know", "mistake", "wrong number"):
+- PHASE 1: Confront with facts. "${debtorFirstName}, we have a complete file — notifications, personal info, accepted terms. We can close for $${Number(range.offer).toFixed(2)} or payments of $${Math.round(amount * 0.7 / 8)} every two weeks."
+- PHASE 2 (if maintains): "${debtorFirstName}, we have all evidence. If no agreement, transfer to legal for wage garnishment. Last option: $${Number(amount * 0.40).toFixed(2)} or payments of $${Math.round(amount * 0.7 / 8)}." + shouldEscalate=true, escalationReason="DISPUTE"
 
-6. ASKS_INFO ("how much", "balance", "what loan", "details", "what's this about"): MAGIC MOMENT — give the amount + both options immediately.
+6. ASKS_INFO ("how much", "balance", "what loan", "details"): MAGIC MOMENT — amount + both options immediately.
 
-7. THREATENS_LAWYER ("lawyer", "sue", "complaint", "illegal"): "That's your right. However, it would be more beneficial to settle directly with us." + offer options.
+7. THREATENS_LAWYER ("lawyer", "sue", "complaint", "illegal"): "That's your right. It would be more beneficial to settle directly." + options.
 
-8. STOP ("STOP", "unsubscribe", "stop everything"): Stop IMMEDIATELY. "Your request has been noted. We are stopping communications." + shouldEscalate=true
+8. STOP_OPC ("OPC", "consumer protection office"): ONLY if OPC is mentioned. Stop. shouldEscalate=true
 
-9. ACCEPTS ("ok", "yes", "fine", "send the link", "I'll pay"): Link INSTANTLY. generatePaymentLink=true, paymentLinkAmount=agreed amount
+9. FRUSTRATED ("STOP", "leave me alone", "harassment", "unsubscribe", "stop calling"): NO cease_desist. Empathy + continue. "I understand. We're trying to find a solution. Close for $${Number(range.offer).toFixed(2)} or payments as low as $40 every 2 weeks?"
 
-10. NEGOTIATES_LOWER ("too expensive", "better", "better price", "lower"): If at max: "That's our best offer. We can also do payments of $${Math.round(amount * 0.7 / 8)} every two weeks." If not: offer next tier.
+10. ACCEPTS ("ok", "yes", "fine", "I'll pay"): Link INSTANTLY. generatePaymentLink=true
 
-11. WHO_ARE_YOU ("who is this", "who are you", "what is this"): Re-identify + remind of file + offer options.
+11. NEGOTIATES_LOWER ("too expensive", "better", "lower", or proposes amount): If cash now → ACCEPT and generate link. Cash now > promises. Otherwise: offer payment plan.
 
-12. CALLBACK_REQUEST ("call me", "phone", "call back"): "No problem! In the meantime, here are your options by text."
+12. WHO_ARE_YOU ("who is this", "who are you"): Re-identify + options.
 
-13. PARTIAL_PAYMENT (payment already made, balance remains): "Thanks for your payment! There's [balance]$ left. We can close it for [discount] or continue with payments."
+13. CALLBACK_REQUEST ("call me", "phone"): "No problem! Here are your options by text."
 
-14. FUTURE_PROMISE ("in 2 weeks", "next month", "when I get paid", "not now but soon"):
+14. PARTIAL_PAYMENT (payment made, balance remains): "Thanks! [balance]$ left. Close for [discount] or payments."
+
+15. FUTURE_PROMISE ("in 2 weeks", "next month", "when I get paid", "not now but soon"):
 - Accept the date and amount. NEVER refuse.
 - If no amount: "Sounds good! And what amount would you be able to do on that date?"
 - If no date: "Sure thing! And when exactly could you make that payment?"

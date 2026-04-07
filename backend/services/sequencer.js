@@ -1,18 +1,21 @@
 /**
  * buildSequence(debtor)
  *
- * Returns an array of scheduled contact objects with a natural cadence:
+ * Returns scheduled contact objects with high-frequency cadence:
+ * 6 contacts per day (3 calls + 3 SMS), plus 1 email.
  *
- * STAGE 1 (Days 1–14, layer=1, friendly):
- *   7-day repeating pattern with pauses and call+sms combos
- *   ~14 contacts in 14 days
+ * Daily pattern (Mon-Sat):
+ *   8:00  call
+ *   9:30  sms
+ *   11:00 call
+ *   13:00 sms
+ *   15:00 call
+ *   17:00 sms
+ *   + 1 email at 10:00 AM every 3rd day
  *
- * STAGE 2 (Days 15–60, layer=2, direct):
- *   Every day, alternating call/sms/email — 46 contacts
- *
- * STAGE 3 (Days 61–120, layer=3, urgent):
- *   Every day, SMS-heavy pattern — 60 contacts
- *
+ * STAGE 1 (Days 1–14, layer=1): friendly tone
+ * STAGE 2 (Days 15–60, layer=2): direct tone
+ * STAGE 3 (Days 61–120, layer=3): urgent tone
  * Day 150: Final layer=4 SMS (after 30-day pause)
  */
 function buildSequence(debtor) {
@@ -20,60 +23,44 @@ function buildSequence(debtor) {
   const contacts = [];
   let step = 0;
 
-  function addContact(day, hour, channel, layer) {
+  function addContact(day, hour, minute, channel, layer) {
     step++;
     const date = new Date(now);
     date.setDate(date.getDate() + day);
-    date.setHours(hour, 0, 0, 0);
+    date.setHours(hour, minute, 0, 0);
     contacts.push({ step, channel, scheduledFor: date.toISOString(), layer });
   }
 
-  // ─── STAGE 1 (Days 1–14, layer=1) ─────────────────────────────────────────
-  // 7-day repeating pattern:
-  //   Day 1: call 10AM + sms 3PM
-  //   Day 2: sms 10AM
-  //   Day 3: PAUSE
-  //   Day 4: email 10AM
-  //   Day 5: sms 10AM
-  //   Day 6: PAUSE
-  //   Day 7: call 10AM + sms 3PM
-  for (let week = 0; week < 2; week++) {
-    const base = week * 7;
-    // Day 1/8: call + sms
-    addContact(base + 1, 10, 'call', 1);
-    addContact(base + 1, 15, 'sms',  1);
-    // Day 2/9: sms
-    addContact(base + 2, 10, 'sms',  1);
-    // Day 3/10: PAUSE
-    // Day 4/11: email
-    addContact(base + 4, 10, 'email', 1);
-    // Day 5/12: sms
-    addContact(base + 5, 10, 'sms',  1);
-    // Day 6/13: PAUSE
-    // Day 7/14: call + sms
-    addContact(base + 7, 10, 'call', 1);
-    addContact(base + 7, 15, 'sms',  1);
+  // Daily contact pattern: 3 calls + 3 SMS
+  const DAILY_PATTERN = [
+    { hour: 8,  min: 0,  channel: 'call' },
+    { hour: 9,  min: 30, channel: 'sms'  },
+    { hour: 11, min: 0,  channel: 'call' },
+    { hour: 13, min: 0,  channel: 'sms'  },
+    { hour: 15, min: 0,  channel: 'call' },
+    { hour: 17, min: 0,  channel: 'sms'  },
+  ];
+
+  for (let day = 1; day <= 120; day++) {
+    // Determine layer
+    let layer;
+    if (day <= 14) layer = 1;
+    else if (day <= 60) layer = 2;
+    else layer = 3;
+
+    // 6 contacts per day (3 calls + 3 SMS)
+    for (const slot of DAILY_PATTERN) {
+      addContact(day, slot.hour, slot.min, slot.channel, layer);
+    }
+
+    // Add email every 3rd day at 10 AM
+    if (day % 3 === 0) {
+      addContact(day, 10, 0, 'email', layer);
+    }
   }
 
-  // ─── STAGE 2 (Days 15–60, layer=2) ────────────────────────────────────────
-  // Every day, alternating: call, sms, email
-  const STAGE2_CHANNELS = ['call', 'sms', 'email'];
-  for (let day = 15; day <= 60; day++) {
-    const channel = STAGE2_CHANNELS[(day - 15) % 3];
-    addContact(day, 10, channel, 2);
-  }
-
-  // ─── STAGE 3 (Days 61–120, layer=3) ───────────────────────────────────────
-  // Every day, SMS-heavy: sms, sms, call, sms, sms, email
-  const STAGE3_CHANNELS = ['sms', 'sms', 'call', 'sms', 'sms', 'email'];
-  for (let day = 61; day <= 120; day++) {
-    const channel = STAGE3_CHANNELS[(day - 61) % 6];
-    addContact(day, 10, channel, 3);
-  }
-
-  // ─── FINAL (Day 150, layer=4) ─────────────────────────────────────────────
-  // 30-day pause then one last SMS
-  addContact(150, 10, 'sms', 4);
+  // Final SMS after 30-day pause (day 150)
+  addContact(150, 10, 0, 'sms', 4);
 
   return contacts;
 }

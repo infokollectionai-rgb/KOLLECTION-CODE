@@ -635,6 +635,47 @@ async function processScheduledContacts() {
     }
   }
 
+  // ─── Total Loss Check ─────────────────────────────────────────────────────
+  // Debtors with no payment AND no response after 45 days → mark as total loss.
+  // BUT if they made at least 1 payment (any amount) → NEVER mark as total loss.
+  try {
+    const cutoff45 = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: lossEligible } = await supabase
+      .from('debtors')
+      .select('id')
+      .eq('total_loss_eligible', false)
+      .eq('cease_desist', false)
+      .lte('created_at', cutoff45)
+      .gt('amount', 0);
+
+    if (lossEligible?.length) {
+      for (const d of lossEligible) {
+        // Check if any payment exists
+        const { count: paymentCount } = await supabase
+          .from('payments')
+          .select('id', { count: 'exact', head: true })
+          .eq('debtor_id', d.id);
+
+        if (paymentCount > 0) continue; // Has payment — never mark as total loss
+
+        // Check if any inbound conversation (debtor responded)
+        const { count: responseCount } = await supabase
+          .from('conversations')
+          .select('id', { count: 'exact', head: true })
+          .eq('debtor_id', d.id)
+          .eq('direction', 'inbound');
+
+        if (responseCount > 0) continue; // Debtor responded — not total loss
+
+        // No payment + no response after 45 days → total loss
+        await supabase.from('debtors').update({ total_loss_eligible: true }).eq('id', d.id);
+        console.log(`[worker] Debtor ${d.id} marked as total loss (45 days, no payment, no response)`);
+      }
+    }
+  } catch (lossErr) {
+    console.error('[worker] Total loss check error:', lossErr.message);
+  }
+
   const summary = {
     processed: contacts.length,
     sent,
