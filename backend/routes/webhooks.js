@@ -144,7 +144,11 @@ CLASSIFICATION DES MESSAGES — Classe CHAQUE message du débiteur dans UNE de c
 
 1. VEUT_PAYER_PAS_TOUT (mots clés: "pas les moyens", "trop d'un coup", "paiements", "pas tout", "pas ${Number(range.offer).toFixed(0)}"): Offrir le plan de paiement avec montant exact: "${Math.round(amount * 0.7 / 8)}$ aux deux semaines. On commence quand vous voulez." + [GENERATE_PAYMENT_LINK:${Math.round(amount * 0.7 / 8)}]
 
-2. PAS_ARGENT (mots clés: "pas d'argent", "cassé", "rien", "chômage", "BS", "maladie", "rien payer"): Compréhension + demander quand il reçoit ses prestations + quel montant fait du sens. "C'est tout à fait compréhensible. Quand recevez-vous vos prestations? On peut s'ajuster à votre situation." Minimum 25$/semaine.
+2. PAS_ARGENT (mots clés: "pas d'argent", "cassé", "rien", "chômage", "BS", "maladie", "rien payer"):
+- ÉTAPE 1: Empathie + poser la question. "Je comprends votre situation. Quand recevez-vous vos prochaines prestations?" → ATTENDRE la réponse. Ne propose AUCUN montant.
+- ÉTAPE 2 (après réponse du client): "Et quel montant serait réaliste pour vous aux deux semaines?" → ATTENDRE la réponse.
+- ÉTAPE 3 (après que le client propose un montant): Évaluer. Si >= 40$ aux 2 semaines → accepter et générer le lien. Si < 40$ → "Le minimum qu'on peut accepter c'est 40$ aux deux semaines. Est-ce que ça pourrait fonctionner?"
+- NE JAMAIS proposer un montant avant que le client ait répondu. Minimum absolu: 40$ aux 2 semaines (50$ si privilege_defaulted).
 
 3. PROMESSE (mots clés: "vendredi", "la semaine prochaine", "lundi", "prochaine paye", "dans X jours"): Envoyer le lien MAINTENANT. "Parfait! Je vous envoie le lien tout de suite pour que ce soit prêt." + confirmer la date + [GENERATE_PAYMENT_LINK:montant]
 
@@ -241,7 +245,11 @@ MESSAGE CLASSIFICATION — Classify EVERY debtor message into ONE of these categ
 
 1. WANTS_TO_PAY_NOT_ALL (keywords: "can't afford", "too much at once", "payments", "not all", "not ${Number(range.offer).toFixed(0)}"): Offer the payment plan with exact amount: "$${Math.round(amount * 0.7 / 8)} every two weeks. We can start whenever you're ready." + [GENERATE_PAYMENT_LINK:${Math.round(amount * 0.7 / 8)}]
 
-2. NO_MONEY (keywords: "no money", "broke", "nothing", "unemployed", "disability", "can't pay anything"): Understanding + ask when they receive benefits + what amount makes sense. "Totally understandable. When do you receive your benefits? We can adjust to your situation." Minimum $25/week.
+2. NO_MONEY (keywords: "no money", "broke", "nothing", "unemployed", "disability", "can't pay anything"):
+- STEP 1: Empathy + ask the question. "I understand your situation. When do you receive your next benefits?" → WAIT for their answer. Do NOT propose any amount.
+- STEP 2 (after client responds): "And what amount would be realistic for you every two weeks?" → WAIT for their answer.
+- STEP 3 (after client proposes an amount): Evaluate. If >= $40 every 2 weeks → accept and generate the link. If < $40 → "The minimum we can accept is $40 every two weeks. Could that work for you?"
+- NEVER propose an amount before the client has answered. Absolute minimum: $40 every 2 weeks ($50 if privilege_defaulted).
 
 3. PROMISE (keywords: "Friday", "next week", "Monday", "next paycheck", "in X days"): Send the link NOW. "Perfect! I'll send you the link right now so it's ready." + confirm the date + [GENERATE_PAYMENT_LINK:amount]
 

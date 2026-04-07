@@ -324,7 +324,11 @@ ${lang === 'fr' ? `CLASSIFICATION DES MESSAGES — Classe CHAQUE message du déb
 
 1. VEUT_PAYER_PAS_TOUT ("pas les moyens", "trop d'un coup", "paiements", "pas tout"): Offrir le plan de paiement: "${Math.round(amount * 0.7 / 8)}$ aux deux semaines. On commence quand vous voulez." + generatePaymentLink=true, paymentLinkAmount=${Math.round(amount * 0.7 / 8)}
 
-2. PAS_ARGENT ("pas d'argent", "cassé", "rien", "chômage", "BS", "maladie"): Compréhension + demander quand il reçoit ses prestations + quel montant fait du sens. Minimum 25$/semaine.
+2. PAS_ARGENT ("pas d'argent", "cassé", "rien", "chômage", "BS", "maladie"):
+- ÉTAPE 1: "Je comprends. Quand recevez-vous vos prochaines prestations?" → ATTENDRE.
+- ÉTAPE 2: "Quel montant serait réaliste aux deux semaines?" → ATTENDRE.
+- ÉTAPE 3: Si >= 40$ → accepter. Si < 40$ → "Le minimum c'est 40$ aux deux semaines."
+- NE JAMAIS proposer un montant avant les réponses. Minimum: 40$/2 sem (50$ si défaut).
 
 3. PROMESSE ("vendredi", "la semaine prochaine", "lundi", "prochaine paye"): Envoyer le lien MAINTENANT + confirmer la date. generatePaymentLink=true
 
@@ -363,7 +367,11 @@ RÈGLE IMPORTANTE: Si le message ne rentre dans AUCUNE catégorie: "${debtorFirs
 
 1. WANTS_TO_PAY_NOT_ALL ("can't afford", "too much at once", "payments", "not all"): Offer the payment plan: "$${Math.round(amount * 0.7 / 8)} every two weeks. We can start whenever you're ready." + generatePaymentLink=true, paymentLinkAmount=${Math.round(amount * 0.7 / 8)}
 
-2. NO_MONEY ("no money", "broke", "nothing", "unemployed", "disability"): Understanding + ask when they receive benefits + what amount makes sense. Minimum $25/week.
+2. NO_MONEY ("no money", "broke", "nothing", "unemployed", "disability"):
+- STEP 1: "I understand. When do you receive your next benefits?" → WAIT.
+- STEP 2: "What amount would be realistic every two weeks?" → WAIT.
+- STEP 3: If >= $40 → accept. If < $40 → "The minimum is $40 every two weeks."
+- NEVER propose an amount before answers. Minimum: $40/2 weeks ($50 if defaulted).
 
 3. PROMISE ("Friday", "next week", "Monday", "next paycheck"): Send the link NOW + confirm the date. generatePaymentLink=true
 
