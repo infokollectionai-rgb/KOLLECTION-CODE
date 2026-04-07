@@ -19,6 +19,12 @@ app.use('/webhooks/stripe', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// ─── Simulator (relaxed CSP for inline React) ───────────────────────────────
+app.use('/simulator', (req, res, next) => {
+  res.removeHeader('Content-Security-Policy');
+  next();
+}, express.static('public'));
+
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
