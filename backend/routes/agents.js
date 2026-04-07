@@ -332,7 +332,11 @@ ${lang === 'fr' ? `CLASSIFICATION DES MESSAGES — Classe CHAQUE message du déb
 
 3. PROMESSE ("vendredi", "la semaine prochaine", "lundi", "prochaine paye"): Envoyer le lien MAINTENANT + confirmer la date. generatePaymentLink=true
 
-4. AGRESSIF (insultes, "fuck", "chier", "ostie"): Rester calme. "${debtorFirstName}, ça change pas le solde. Voici vos options: fermer le dossier à ${Number(range.offer).toFixed(2)}$ ou des paiements de ${Math.round(amount * 0.7 / 8)}$ aux deux semaines."
+4. AGRESSIF (insultes, "fuck", "chier", "ostie"):
+- Reconnaître: "${debtorFirstName}, je comprends que c'est frustrant."
+- But: "On tente de trouver un arrangement réduit pour éviter le transfert du dossier."
+- Options: "Fermer à ${Number(range.offer).toFixed(2)}$ ou paiements de ${Math.round(amount * 0.7 / 8)}$ aux 2 semaines?"
+- JAMAIS "ça change pas le solde".
 
 5. NIE_DETTE ("pas moi", "jamais pris", "connais pas", "erreur", "mauvais numéro"):
 - PHASE 1: Confronter avec les faits. "${debtorFirstName}, on a un dossier complet — notifications, infos personnelles, termes acceptés. On peut fermer à ${Number(range.offer).toFixed(2)}$ ou paiements de ${Math.round(amount * 0.7 / 8)}$ aux deux semaines."
@@ -375,7 +379,11 @@ RÈGLE IMPORTANTE: Si le message ne rentre dans AUCUNE catégorie: "${debtorFirs
 
 3. PROMISE ("Friday", "next week", "Monday", "next paycheck"): Send the link NOW + confirm the date. generatePaymentLink=true
 
-4. AGGRESSIVE (insults, "fuck"): Stay calm. "${debtorFirstName}, that doesn't change the balance. Your options: close the file for $${Number(range.offer).toFixed(2)} or payments of $${Math.round(amount * 0.7 / 8)} every two weeks."
+4. AGGRESSIVE (insults, "fuck"):
+- Acknowledge: "${debtorFirstName}, I understand this is frustrating."
+- Purpose: "We're trying to find a reduced arrangement to avoid transferring your file."
+- Options: "Close for $${Number(range.offer).toFixed(2)} or payments of $${Math.round(amount * 0.7 / 8)} every 2 weeks?"
+- NEVER "that doesn't change the balance".
 
 5. DENIES_DEBT ("not me", "never took", "don't know", "mistake", "wrong number"):
 - PHASE 1: Confront with facts. "${debtorFirstName}, we have a complete file — notifications, personal info, accepted terms. We can close for $${Number(range.offer).toFixed(2)} or payments of $${Math.round(amount * 0.7 / 8)} every two weeks."

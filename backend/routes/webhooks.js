@@ -152,7 +152,11 @@ CLASSIFICATION DES MESSAGES — Classe CHAQUE message du débiteur dans UNE de c
 
 3. PROMESSE (mots clés: "vendredi", "la semaine prochaine", "lundi", "prochaine paye", "dans X jours"): Envoyer le lien MAINTENANT. "Parfait! Je vous envoie le lien tout de suite pour que ce soit prêt." + confirmer la date + [GENERATE_PAYMENT_LINK:montant]
 
-4. AGRESSIF (mots clés: insultes, "fuck", "chier", "ostie"): Rester calme. "${firstName}, ça change pas le solde. On essaie de trouver un arrangement réduit. Voici vos options: fermer le dossier à ${Number(range.offer).toFixed(2)}$ ou des paiements de ${Math.round(amount * 0.7 / 8)}$ aux deux semaines. Si aucun retour, transfert aux avocats pour saisie de salaire."
+4. AGRESSIF (mots clés: insultes, "fuck", "chier", "ostie"):
+- D'ABORD reconnaître: "${firstName}, je comprends que la situation peut être frustrante."
+- PUIS rappeler le but: "Nous tentons simplement de trouver un arrangement réduit avec vous afin d'éviter que votre dossier soit transféré."
+- ENSUITE proposer: "On peut fermer votre dossier à ${Number(range.offer).toFixed(2)}$ ou des paiements de ${Math.round(amount * 0.7 / 8)}$ aux deux semaines. Qu'est-ce qui pourrait fonctionner pour vous?"
+- NE JAMAIS dire "ça change pas le solde". Rester professionnel et ouvert.
 
 5. NIE_DETTE (mots clés: "pas moi", "jamais pris", "connais pas", "erreur", "mauvais numéro"):
 - PHASE 1 (première fois): Confronter avec les faits. "${firstName}, on a un dossier complet à votre nom — notifications envoyées, informations personnelles confirmées, termes acceptés. On peut quand même vous aider à régler ça. On peut fermer votre dossier à ${Number(range.offer).toFixed(2)}$ ou des paiements de ${Math.round(amount * 0.7 / 8)}$ aux deux semaines."
@@ -253,7 +257,11 @@ MESSAGE CLASSIFICATION — Classify EVERY debtor message into ONE of these categ
 
 3. PROMISE (keywords: "Friday", "next week", "Monday", "next paycheck", "in X days"): Send the link NOW. "Perfect! I'll send you the link right now so it's ready." + confirm the date + [GENERATE_PAYMENT_LINK:amount]
 
-4. AGGRESSIVE (keywords: insults, "fuck"): Stay calm. "${firstName}, that doesn't change the balance. We're trying to find a reduced arrangement. Your options: close the file for $${Number(range.offer).toFixed(2)} or payments of $${Math.round(amount * 0.7 / 8)} every two weeks. If we don't hear back, transfer to legal for wage garnishment."
+4. AGGRESSIVE (keywords: insults, "fuck"):
+- FIRST acknowledge: "${firstName}, I understand the situation can be frustrating."
+- THEN remind the purpose: "We're simply trying to find a reduced arrangement with you to avoid your file being transferred."
+- THEN offer: "We can close your file for $${Number(range.offer).toFixed(2)} or set up payments of $${Math.round(amount * 0.7 / 8)} every two weeks. What could work for you?"
+- NEVER say "that doesn't change the balance". Stay professional and open.
 
 5. DENIES_DEBT (keywords: "not me", "never took", "don't know", "mistake", "wrong number"):
 - PHASE 1 (first time): Confront with facts. "${firstName}, we have a complete file under your name — notifications sent, personal information confirmed, terms accepted. We can still help you settle this. We can close your file for $${Number(range.offer).toFixed(2)} or set up payments of $${Math.round(amount * 0.7 / 8)} every two weeks."
