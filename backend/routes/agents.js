@@ -197,6 +197,7 @@ router.post('/negotiation/suggest', async (req, res) => {
     paymentLinkUrl,
     customRules,
     debtorName,
+    discountPercent,
   } = req.body;
 
   if (!debtorId || amount === undefined || amount === null) {
@@ -211,7 +212,7 @@ router.post('/negotiation/suggest', async (req, res) => {
   // Fetch company details
   const { data: companyRecord } = await supabase
     .from('client_companies')
-    .select('business_phone, company_name, voice_agent_name')
+    .select('business_phone, company_name, voice_agent_name, discount_percent')
     .eq('id', resolvedCompanyId)
     .single();
 
@@ -234,12 +235,16 @@ router.post('/negotiation/suggest', async (req, res) => {
   const areaCode = phoneDigits.startsWith('1') ? phoneDigits.slice(1, 4) : phoneDigits.slice(0, 3);
   const lang = FRENCH_AREA_CODES.includes(areaCode) ? 'fr' : 'en';
 
-  // Stage-based settlement ranges matching partner strategy
+  // Discount-based offer: use API param > company DB > default 50%
+  const resolvedDiscount = discountPercent ?? companyRecord?.discount_percent ?? 50;
+  const discountOffer = amount * (1 - resolvedDiscount / 100);
+
+  // Stage-based settlement ranges (min/max still tier-based, offer uses discount)
   const RANGES = {
-    1: { offer: amount * 0.70, min: amount * 0.50, max: amount },
-    2: { offer: amount * 0.50, min: amount * 0.40, max: amount * 0.70 },
-    3: { offer: amount * 0.40, min: floorAmount,   max: amount * 0.50 },
-    4: { offer: amount * 0.40, min: floorAmount,   max: amount * 0.50 },
+    1: { offer: discountOffer, min: amount * 0.50, max: amount },
+    2: { offer: discountOffer, min: amount * 0.40, max: amount * 0.70 },
+    3: { offer: discountOffer, min: floorAmount,   max: amount * 0.50 },
+    4: { offer: discountOffer, min: floorAmount,   max: amount * 0.50 },
   };
   const range = RANGES[Math.min(tier, 4)];
 
@@ -295,10 +300,10 @@ FOLLOW-UP (if they DON'T respond to first message) — still friendly, still NO 
 ${lang === 'fr' ? `Example: "Salut ${debtorFirstName}, c'est encore ${resolvedAgentName} de ${clientCompanyName}. Je vous ai écrit concernant votre dossier de prêt. On a une offre avantageuse pour vous. Faites-moi signe quand vous avez une minute!"` : `Example: "Hey ${debtorFirstName}, it's ${resolvedAgentName} from ${clientCompanyName} again. I reached out about your loan file. We have a great offer for you. Let me know when you have a minute!"`}
 
 WHEN DEBTOR ENGAGES — give specific numbers immediately:
-${lang === 'fr' ? `Example: "On peut fermer votre dossier à ${Number(range.offer).toFixed(2)}$ ou bien des paiements de ${Math.round(amount * 0.7 / 8)}$ aux deux semaines pour la balance complète de ${Number(amount).toFixed(2)}$. Qu'est-ce qui vous convient?"` : `Example: "We can close your file for $${Number(range.offer).toFixed(2)} or set up payments of $${Math.round(amount * 0.7 / 8)} every two weeks for the full balance of $${Number(amount).toFixed(2)}. What works for you?"`}
-${lang === 'fr' ? `Ne dis JAMAIS "soit...soit mettre en place". Garde ça simple et direct.` : `NEVER say "either...or set up". Keep it simple and direct.`}
+${lang === 'fr' ? `Example: "On peut régler votre solde avec un rabais de ${resolvedDiscount}%, soit ${Number(range.offer).toFixed(2)}$ au lieu de ${Number(amount).toFixed(2)}$. Sinon on peut aussi organiser des paiements réduits de ${Math.round(amount * 0.7 / 8)}$ aux deux semaines sur le montant complet. Qu'est-ce qui vous convient?"` : `Example: "We can settle your balance at ${resolvedDiscount}% off, which is $${Number(range.offer).toFixed(2)} instead of $${Number(amount).toFixed(2)}. Or we can set up reduced payments of $${Math.round(amount * 0.7 / 8)} every two weeks on the full amount. What works for you?"`}
+${lang === 'fr' ? `Garde ça simple et direct. TOUJOURS montrer le rabais en % ET le montant avant/après.` : `Keep it simple and direct. ALWAYS show the discount as % AND the before/after amount.`}
 
-${lang === 'fr' ? `QUAND LE CLIENT CHOISIT LE RABAIS: c'est UN SEUL paiement. Dis: "Parfait! Je vous envoie le lien de ${Number(range.offer).toFixed(2)}$ tout de suite pour fermer le dossier." et génère le lien immédiatement. Ne propose JAMAIS de diviser sauf si le client le demande. Maximum 2 versements sur 14 jours si demandé.` : `WHEN THE CLIENT CHOOSES THE DISCOUNT: it's ONE single payment. Say: "Perfect! I'll send you the link for $${Number(range.offer).toFixed(2)} right now to close the file." and generate the link immediately. NEVER offer to split unless the client asks. Maximum 2 payments over 14 days if asked.`}
+${lang === 'fr' ? `QUAND LE CLIENT CHOISIT LE RABAIS: c'est UN SEUL paiement. Dis: "Parfait! Ça fait ${Number(range.offer).toFixed(2)}$ au lieu de ${Number(amount).toFixed(2)}$ (${resolvedDiscount}% de rabais). Je vous envoie le lien tout de suite!" Ne propose JAMAIS de diviser sauf si le client le demande. Maximum 2 versements sur 14 jours si demandé.` : `WHEN THE CLIENT CHOOSES THE DISCOUNT: it's ONE single payment. Say: "Perfect! That's $${Number(range.offer).toFixed(2)} instead of $${Number(amount).toFixed(2)} (${resolvedDiscount}% off). I'll send you the link right now!" NEVER offer to split unless the client asks. Maximum 2 payments over 14 days if asked.`}
 
 ${lang === 'fr' ? `QUAND LE CLIENT CHOISIT LE PLAN DE PAIEMENT: donne le montant exact par semaine ou 2 semaines et demande de confirmer pour envoyer le lien du premier versement.` : `WHEN THE CLIENT CHOOSES THE PAYMENT PLAN: give the exact amount per week or every 2 weeks and ask to confirm so you can send the first payment link.`}
 
@@ -337,11 +342,11 @@ ${lang === 'fr' ? `CLASSIFICATION DES MESSAGES — Classe CHAQUE message du déb
 4. AGRESSIF (insultes, "fuck", "chier", "ostie"):
 - Reconnaître: "${debtorFirstName}, je comprends que c'est frustrant."
 - But: "On tente de trouver un arrangement réduit pour éviter le transfert du dossier."
-- Options: "Fermer à ${Number(range.offer).toFixed(2)}$ ou paiements de ${Math.round(amount * 0.7 / 8)}$ aux 2 semaines?"
+- Options: "Régler avec ${resolvedDiscount}% de rabais, soit ${Number(range.offer).toFixed(2)}$ au lieu de ${Number(amount).toFixed(2)}$, ou paiements de ${Math.round(amount * 0.7 / 8)}$ aux 2 semaines?"
 - JAMAIS "ça change pas le solde".
 
 5. NIE_DETTE ("pas moi", "jamais pris", "connais pas", "erreur", "mauvais numéro"):
-- PHASE 1: Confronter avec les faits. "${debtorFirstName}, on a un dossier complet — notifications, infos personnelles, termes acceptés. On peut fermer à ${Number(range.offer).toFixed(2)}$ ou paiements de ${Math.round(amount * 0.7 / 8)}$ aux deux semaines."
+- PHASE 1: Confronter avec les faits. "${debtorFirstName}, on a un dossier complet — notifications, infos personnelles, termes acceptés. On peut régler avec ${resolvedDiscount}% de rabais (${Number(range.offer).toFixed(2)}$ au lieu de ${Number(amount).toFixed(2)}$) ou paiements de ${Math.round(amount * 0.7 / 8)}$ aux deux semaines."
 - PHASE 2 (si maintient): "${debtorFirstName}, on a toutes les preuves. Si aucune entente, transfert aux avocats pour saisie de salaire. Dernière option: ${Number(amount * 0.40).toFixed(2)}$ ou paiements de ${Math.round(amount * 0.7 / 8)}$." + shouldEscalate=true, escalationReason="DISPUTE"
 
 6. DEMANDE_INFO ("combien", "solde", "quel prêt", "détails"): MOMENT MAGIQUE — montant + deux options immédiatement.
@@ -350,7 +355,7 @@ ${lang === 'fr' ? `CLASSIFICATION DES MESSAGES — Classe CHAQUE message du déb
 
 8. STOP_OPC ("OPC", "Office de protection du consommateur"): SEULEMENT si mention de l'OPC. Arrêter. shouldEscalate=true
 
-9. FRUSTRATED ("STOP", "arrêtez", "lâchez-moi", "harcèlement", "désabonnez"): PAS de cease_desist. Empathie + continuer. "Je comprends. On essaie de trouver une solution. Fermer à ${Number(range.offer).toFixed(2)}$ ou paiements de 40$ aux 2 semaines?"
+9. FRUSTRATED ("STOP", "arrêtez", "lâchez-moi", "harcèlement", "désabonnez"): PAS de cease_desist. Empathie + continuer. "Je comprends. On peut régler avec ${resolvedDiscount}% de rabais (${Number(range.offer).toFixed(2)}$) ou paiements de 40$ aux 2 semaines?"
 
 10. ACCEPTE ("ok", "oui", "d'accord", "je paie"): Lien INSTANTANÉ. generatePaymentLink=true
 
@@ -384,11 +389,11 @@ RÈGLE IMPORTANTE: Si le message ne rentre dans AUCUNE catégorie: "${debtorFirs
 4. AGGRESSIVE (insults, "fuck"):
 - Acknowledge: "${debtorFirstName}, I understand this is frustrating."
 - Purpose: "We're trying to find a reduced arrangement to avoid transferring your file."
-- Options: "Close for $${Number(range.offer).toFixed(2)} or payments of $${Math.round(amount * 0.7 / 8)} every 2 weeks?"
+- Options: "Settle at ${resolvedDiscount}% off ($${Number(range.offer).toFixed(2)} instead of $${Number(amount).toFixed(2)}) or payments of $${Math.round(amount * 0.7 / 8)} every 2 weeks?"
 - NEVER "that doesn't change the balance".
 
 5. DENIES_DEBT ("not me", "never took", "don't know", "mistake", "wrong number"):
-- PHASE 1: Confront with facts. "${debtorFirstName}, we have a complete file — notifications, personal info, accepted terms. We can close for $${Number(range.offer).toFixed(2)} or payments of $${Math.round(amount * 0.7 / 8)} every two weeks."
+- PHASE 1: Confront with facts. "${debtorFirstName}, we have a complete file — notifications, personal info, accepted terms. We can settle at ${resolvedDiscount}% off ($${Number(range.offer).toFixed(2)} instead of $${Number(amount).toFixed(2)}) or payments of $${Math.round(amount * 0.7 / 8)} every two weeks."
 - PHASE 2 (if maintains): "${debtorFirstName}, we have all evidence. If no agreement, transfer to legal for wage garnishment. Last option: $${Number(amount * 0.40).toFixed(2)} or payments of $${Math.round(amount * 0.7 / 8)}." + shouldEscalate=true, escalationReason="DISPUTE"
 
 6. ASKS_INFO ("how much", "balance", "what loan", "details"): MAGIC MOMENT — amount + both options immediately.
@@ -397,7 +402,7 @@ RÈGLE IMPORTANTE: Si le message ne rentre dans AUCUNE catégorie: "${debtorFirs
 
 8. STOP_OPC ("OPC", "consumer protection office"): ONLY if OPC is mentioned. Stop. shouldEscalate=true
 
-9. FRUSTRATED ("STOP", "leave me alone", "harassment", "unsubscribe", "stop calling"): NO cease_desist. Empathy + continue. "I understand. We're trying to find a solution. Close for $${Number(range.offer).toFixed(2)} or payments as low as $40 every 2 weeks?"
+9. FRUSTRATED ("STOP", "leave me alone", "harassment", "unsubscribe", "stop calling"): NO cease_desist. Empathy + continue. "I understand. We can settle at ${resolvedDiscount}% off ($${Number(range.offer).toFixed(2)}) or payments as low as $40 every 2 weeks?"
 
 10. ACCEPTS ("ok", "yes", "fine", "I'll pay"): Link INSTANTLY. generatePaymentLink=true
 

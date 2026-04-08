@@ -76,8 +76,8 @@ FLOW DE L'APPEL / CALL FLOW:
    EN: "This is ${agentName} from ${companyName}. We're calling because we have an interesting offer regarding your loan file with us."
 
 3. Options:
-   FR: "On peut fermer votre dossier à ${discountAmount}$ ou bien mettre en place des paiements de ${paymentAmount}$ aux deux semaines pour la balance complète de ${Number(amount).toFixed(2)}$. Qu'est-ce qui vous conviendrait le mieux?"
-   EN: "We can close your file for $${discountAmount} or set up payments of $${paymentAmount} every two weeks for the full balance of $${Number(amount).toFixed(2)}. What would work best for you?"
+   FR: "On peut régler votre solde avec un rabais de ${Math.round((1 - discountAmount / Number(amount)) * 100)}%, soit ${discountAmount}$ au lieu de ${Number(amount).toFixed(2)}$. Sinon on peut organiser des paiements de ${paymentAmount}$ aux deux semaines sur le montant complet. Qu'est-ce qui vous conviendrait?"
+   EN: "We can settle your balance at ${Math.round((1 - discountAmount / Number(amount)) * 100)}% off, which is $${discountAmount} instead of $${Number(amount).toFixed(2)}. Or we can set up payments of $${paymentAmount} every two weeks on the full amount. What would work best?"
 
 4. Si accepte / If accepts:
    FR: "Parfait! Je vous envoie un lien de paiement par texto tout de suite pendant qu'on est ensemble au téléphone."
@@ -231,6 +231,8 @@ async function generateAiMessage(debtor, company, channel) {
   const agentName   = company.voice_agent_name ?? 'Sophie';
   const firstName   = debtor.first_name ?? debtor.name?.split(' ')[0] ?? 'Client';
   const lang        = detectLanguage(debtor);
+  const discountPct = company.discount_percent ?? 50;
+  const discountAmt = Number(amount * (1 - discountPct / 100)).toFixed(2);
 
   // NOTE: This function is ONLY called for layer 2+ messages.
   // Layer 1 uses the hardcoded template via buildFirstContactMessage().
@@ -247,13 +249,13 @@ async function generateAiMessage(debtor, company, channel) {
 Écris UN SEUL ${channel === 'sms' ? 'SMS' : 'courriel'} de suivi. Le message DOIT:
 - Utiliser le PRÉNOM "${firstName}" seulement — JAMAIS M./Mme ou tout titre formel
 - Mentionner le solde de ${amount.toFixed(2)}$
-- Offrir deux options: entente de paiement très flexible OU rabais intéressant pour fermer le dossier
+- Offrir deux options: rabais de ${discountPct}% (${discountAmt}$ au lieu de ${amount.toFixed(2)}$) OU entente de paiement flexible sur le montant complet
 - Être conversationnel et chaleureux
 - Être entièrement en FRANÇAIS
 - Faire MOINS de 300 caractères
 - Ne JAMAIS dire "contactez-nous", "répondez à ce message", "Reply YES", "Répondez OUI", "impayé", "souffrance"
 
-Exemple: "Merci de répondre ${firstName}! Donc concernant votre solde de ${amount.toFixed(2)}$ avec ${companyName}, on a deux options pour vous: une entente de paiement très flexible ou bien un rabais intéressant pour fermer le dossier une fois pour toutes. Qu'est-ce qui marcherait le mieux pour vous?"
+Exemple: "${firstName}, concernant votre solde de ${amount.toFixed(2)}$ avec ${companyName}, on peut régler avec ${discountPct}% de rabais (${discountAmt}$ au lieu de ${amount.toFixed(2)}$) ou des paiements réduits sur le montant complet. Qu'est-ce qui marcherait le mieux?"
 
 Écris SEULEMENT le ${channel === 'sms' ? 'SMS' : 'courriel'}, rien d'autre.`;
   } else {
@@ -262,13 +264,13 @@ Exemple: "Merci de répondre ${firstName}! Donc concernant votre solde de ${amou
 Write ONE ${channel === 'sms' ? 'SMS' : 'email'} follow-up message. The message MUST:
 - Use FIRST NAME "${firstName}" only — NEVER Mr./Mrs. or any formal title
 - Mention the balance of $${amount.toFixed(2)}
-- Offer two options: very flexible payment plan OR interesting discount to close the file
+- Offer two options: ${discountPct}% discount ($${discountAmt} instead of $${amount.toFixed(2)}) OR flexible payment plan on the full amount
 - Be conversational and warm
 - Be entirely in ENGLISH
 - Be UNDER 300 characters
 - NEVER say "contact us", "call us", "Reply YES", "opt out", "overdue", "unpaid"
 
-Example: "Thanks for getting back ${firstName}! So regarding your $${amount.toFixed(2)} balance with ${companyName}, we've got two options for you: a very flexible payment plan or an interesting discount to close the file once and for all. What would work best for you?"
+Example: "${firstName}, regarding your $${amount.toFixed(2)} balance with ${companyName}, we can settle at ${discountPct}% off ($${discountAmt} instead of $${amount.toFixed(2)}) or set up reduced payments on the full amount. What would work best?"
 
 Write ONLY the ${channel === 'sms' ? 'SMS' : 'email'}, nothing else.`;
   }
@@ -286,14 +288,14 @@ Write ONLY the ${channel === 'sms' ? 'SMS' : 'email'}, nothing else.`;
     // Fallback static messages — first name only, no formal titles
     if (lang === 'fr') {
       if (channel === 'sms') {
-        return `Salut ${firstName}, c'est ${agentName} de ${companyName}. Concernant votre solde de ${amount.toFixed(2)}$, on a deux options: entente flexible ou rabais pour fermer le dossier. Qu'est-ce qui marcherait le mieux pour vous?`;
+        return `Salut ${firstName}, c'est ${agentName} de ${companyName}. Concernant votre solde de ${amount.toFixed(2)}$, on peut régler avec ${discountPct}% de rabais (${discountAmt}$) ou des paiements flexibles. Qu'est-ce qui marcherait le mieux?`;
       }
-      return `Bonjour ${firstName},\n\nC'est ${agentName} de ${companyName}. Concernant votre solde de ${amount.toFixed(2)}$, on a deux options pour vous: une entente de paiement très flexible ou un rabais intéressant pour fermer le dossier.\n\nQu'est-ce qui marcherait le mieux pour vous?\n\n${agentName}\n${companyName}`;
+      return `Bonjour ${firstName},\n\nC'est ${agentName} de ${companyName}. Concernant votre solde de ${amount.toFixed(2)}$, on peut régler avec ${discountPct}% de rabais (${discountAmt}$ au lieu de ${amount.toFixed(2)}$) ou des paiements flexibles sur le montant complet.\n\nQu'est-ce qui marcherait le mieux?\n\n${agentName}\n${companyName}`;
     }
     if (channel === 'sms') {
-      return `Hey ${firstName}, it's ${agentName} from ${companyName}. Regarding your $${amount.toFixed(2)} balance, we've got two options: a flexible payment plan or a discount to close the file. What works best for you?`;
+      return `Hey ${firstName}, it's ${agentName} from ${companyName}. Regarding your $${amount.toFixed(2)} balance, we can settle at ${discountPct}% off ($${discountAmt}) or set up flexible payments. What works best?`;
     }
-    return `Hey ${firstName},\n\nIt's ${agentName} from ${companyName}. Regarding your $${amount.toFixed(2)} balance, we've got two options for you: a very flexible payment plan or an interesting discount to close the file.\n\nWhat would work best for you?\n\n${agentName}\n${companyName}`;
+    return `Hey ${firstName},\n\nIt's ${agentName} from ${companyName}. Regarding your $${amount.toFixed(2)} balance, we can settle at ${discountPct}% off ($${discountAmt} instead of $${amount.toFixed(2)}) or set up flexible payments on the full amount.\n\nWhat would work best?\n\n${agentName}\n${companyName}`;
   }
 }
 
@@ -547,7 +549,7 @@ async function processScheduledContacts() {
       if (!companyCache[contact.company_id]) {
         const { data: company, error: companyError } = await supabase
           .from('client_companies')
-          .select('id, company_name, business_phone, voice_agent_name, twilio_account_sid, twilio_auth_token, sendgrid_api_key, sendgrid_from_email, sendgrid_from_name, vapi_api_key, vapi_assistant_id')
+          .select('id, company_name, business_phone, voice_agent_name, twilio_account_sid, twilio_auth_token, sendgrid_api_key, sendgrid_from_email, sendgrid_from_name, vapi_api_key, vapi_assistant_id, discount_percent')
           .eq('id', contact.company_id)
           .single();
 

@@ -112,6 +112,7 @@ function App() {
   const [rulesOpen, setRulesOpen] = useState(false);
   const [editingIdx, setEditingIdx] = useState(null);
   const [editNote, setEditNote] = useState("");
+  const [correctionMode, setCorrectionMode] = useState('correction'); // 'correction' or 'rule'
   const [activeScenario, setActiveScenario] = useState(null);
   const chatRef = useRef(null);
 
@@ -196,10 +197,20 @@ function App() {
   const startCorrection = (idx) => {
     setEditingIdx(idx);
     setEditNote("");
+    setCorrectionMode('correction');
   };
 
   const saveCorrection = () => {
     if (editingIdx === null) return;
+    if (correctionMode === 'rule') {
+      // Add as a permanent rule
+      if (editNote.trim()) {
+        setRules(prev => [...prev, editNote.trim()]);
+        setMessages(prev => prev.map((m, i) => i === editingIdx ? { ...m, corrected: true } : m));
+      }
+      setEditingIdx(null);
+      return;
+    }
     const msg = messages[editingIdx];
     const correction = {
       timestamp: new Date().toISOString(),
@@ -372,18 +383,34 @@ function App() {
       {editingIdx !== null && (
         <div className="modal-overlay" onClick={() => setEditingIdx(null)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3>Corriger la reponse AI</h3>
+            <h3>{correctionMode === 'correction' ? 'Corriger la reponse AI' : 'Ajouter une regle generale'}</h3>
             <p style={{fontSize:12,color:'#94a3b8',marginBottom:8}}>Intent: {messages[editingIdx]?.intent}</p>
             <p style={{fontSize:13,color:'#cbd5e1',marginBottom:12,padding:8,background:'#0f172a',borderRadius:6}}>{messages[editingIdx]?.content}</p>
+            <div style={{display:'flex',gap:4,marginBottom:10}}>
+              <button
+                onClick={() => { setCorrectionMode('correction'); setEditNote(''); }}
+                style={{flex:1,padding:'6px 0',border:'1px solid',borderColor:correctionMode==='correction'?'#2563eb':'#334155',background:correctionMode==='correction'?'#1e3a5f':'transparent',color:correctionMode==='correction'?'#93c5fd':'#94a3b8',borderRadius:4,cursor:'pointer',fontSize:12}}
+              >Corriger cette reponse</button>
+              <button
+                onClick={() => { setCorrectionMode('rule'); setEditNote(''); }}
+                style={{flex:1,padding:'6px 0',border:'1px solid',borderColor:correctionMode==='rule'?'#f59e0b':'#334155',background:correctionMode==='rule'?'#422006':'transparent',color:correctionMode==='rule'?'#fbbf24':'#94a3b8',borderRadius:4,cursor:'pointer',fontSize:12}}
+              >Ajouter une regle generale</button>
+            </div>
             <textarea
               value={editNote}
               onChange={e => setEditNote(e.target.value)}
-              placeholder="Qu'est-ce qui est incorrect? Quelle devrait etre la bonne reponse?"
+              placeholder={correctionMode === 'correction'
+                ? "Qu'est-ce qui est incorrect? Quelle devrait etre la bonne reponse?"
+                : "Ecris une regle qui s'appliquera a TOUS les futurs messages. Ex: Ne jamais proposer un montant avant la reponse du client"}
               autoFocus
             />
             <div className="modal-actions">
               <button style={{background:'#334155',color:'#e2e8f0'}} onClick={() => setEditingIdx(null)}>Annuler</button>
-              <button style={{background:'#f59e0b',color:'#000'}} onClick={saveCorrection} disabled={!editNote.trim()}>Sauvegarder</button>
+              <button
+                style={{background:correctionMode==='correction'?'#f59e0b':'#2563eb',color:correctionMode==='correction'?'#000':'#fff'}}
+                onClick={saveCorrection}
+                disabled={!editNote.trim()}
+              >{correctionMode === 'correction' ? 'Sauvegarder correction' : 'Ajouter la regle'}</button>
             </div>
           </div>
         </div>
