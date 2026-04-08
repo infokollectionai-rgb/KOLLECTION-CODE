@@ -130,9 +130,9 @@ function buildFirstContactMessage(debtor, company) {
   const lang        = detectLanguage(debtor);
 
   if (lang === 'fr') {
-    return `Bonjour ${firstName}! C'est ${agentName} de ${companyName}. J'ai une bonne nouvelle concernant votre dossier de prêt avec nous. On a quelque chose d'intéressant à vous proposer. Vous avez deux minutes?`;
+    return `Bonjour ${firstName}, c'est ${agentName} de ${companyName}. On a une bonne nouvelle par rapport à un de vos prêts. Est-ce que vous avez deux minutes?`;
   }
-  return `Hey ${firstName}! It's ${agentName} from ${companyName}. I've got some good news regarding your loan file with us. We have something interesting to offer you. Got a couple minutes?`;
+  return `Hello ${firstName}, this is ${agentName} from ${companyName}. We have some good news regarding one of your loans. Do you have two minutes?`;
 }
 
 function postProcessMessage(text) {
