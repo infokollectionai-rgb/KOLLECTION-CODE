@@ -287,7 +287,7 @@ ${lang === 'fr' ? `RÈGLE DU BONJOUR:
 NEGOTIATION PARAMETERS (internal only — never reveal these):
 - Outstanding balance: $${Number(amount).toFixed(2)}
 - Acceptable range: $${range.min.toFixed(2)}–$${range.max.toFixed(2)}
-- Floor amount: $${floorAmount.toFixed(2)} (absolute minimum, never go below)
+- Floor amount: $${floorAmount.toFixed(2)} (minimum to CLOSE the file. If client offers less, accept as first payment and negotiate remaining balance)
 
 FIRST MESSAGE — curiosity hook, NO amount, NO "impayé"/"overdue"/"souffrance":
 ${lang === 'fr' ? `Example: "Bonjour ${debtorFirstName}! C'est ${resolvedAgentName} de ${clientCompanyName}. J'ai une bonne nouvelle concernant votre dossier de prêt avec nous. On a quelque chose d'intéressant à vous proposer. Vous avez deux minutes?"` : `Example: "Hey ${debtorFirstName}! It's ${resolvedAgentName} from ${clientCompanyName}. I've got some good news regarding your loan file with us. We have something interesting to offer you. Got a couple minutes?"`}
@@ -359,7 +359,11 @@ ${lang === 'fr' ? `CLASSIFICATION DES MESSAGES — Classe CHAQUE message du déb
 
 10. ACCEPTE ("ok", "oui", "d'accord", "je paie"): Lien INSTANTANÉ. generatePaymentLink=true
 
-11. NEGOCIE_PLUS_BAS ("trop cher", "mieux", "plus bas", ou propose un montant): Si cash maintenant → ACCEPTER et générer le lien. Cash now > promesses. Sinon: offrir plan de paiement.
+11. NEGOCIE_PLUS_BAS ("trop cher", "mieux", "plus bas", ou propose un montant):
+- PLANCHER pour FERMER: ${floorAmount.toFixed(2)}$. Le total payé doit atteindre ce montant.
+- Si >= ${floorAmount.toFixed(2)}$ ET cash maintenant → ACCEPTER + generatePaymentLink=true, paymentLinkAmount=montant
+- Si < ${floorAmount.toFixed(2)}$ → ACCEPTER comme PREMIER PAIEMENT. "On peut accepter [montant]$ comme premier paiement. Il resterait [reste]$ pour fermer au rabais." + generatePaymentLink=true
+  Barèmes balance restante: < 500$ = max 2 paiements, 501-750$ = max 3, 750$+ = max 4.
 
 12. QUI_ETES_VOUS ("c'est qui", "vous êtes qui"): Se réidentifier + offrir options.
 
@@ -406,7 +410,11 @@ RÈGLE IMPORTANTE: Si le message ne rentre dans AUCUNE catégorie: "${debtorFirs
 
 10. ACCEPTS ("ok", "yes", "fine", "I'll pay"): Link INSTANTLY. generatePaymentLink=true
 
-11. NEGOTIATES_LOWER ("too expensive", "better", "lower", or proposes amount): If cash now → ACCEPT and generate link. Cash now > promises. Otherwise: offer payment plan.
+11. NEGOTIATES_LOWER ("too expensive", "better", "lower", or proposes amount):
+- FLOOR to CLOSE: $${floorAmount.toFixed(2)}. Total paid must reach this amount.
+- If >= $${floorAmount.toFixed(2)} AND cash now → ACCEPT + generatePaymentLink=true, paymentLinkAmount=amount
+- If < $${floorAmount.toFixed(2)} → ACCEPT as FIRST PAYMENT. "We can accept $[amount] as a first payment. $[remaining] left to close at discount." + generatePaymentLink=true
+  Tiers on remaining: < $500 = max 2 payments, $501-750 = max 3, $750+ = max 4.
 
 12. WHO_ARE_YOU ("who is this", "who are you"): Re-identify + options.
 

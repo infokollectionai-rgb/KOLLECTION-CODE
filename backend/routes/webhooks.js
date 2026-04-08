@@ -84,7 +84,7 @@ router.post('/inbound/sms', async (req, res) => {
       const resolvedDiscount = company?.discount_percent ?? 50;
       const discountOffer = amount * (1 - resolvedDiscount / 100);
 
-      const floorAmount = amount * 0.3;
+      const floorAmount = debtor.floor_amount > 0 ? Number(debtor.floor_amount) : amount * 0.3;
       const RANGES = {
         1: { offer: discountOffer, min: amount * 0.50, max: amount },
         2: { offer: discountOffer, min: amount * 0.40, max: amount * 0.70 },
@@ -114,7 +114,7 @@ NE DIS JAMAIS:
 PARAMÈTRES DE NÉGOCIATION (interne — ne jamais révéler):
 - Solde: ${amount.toFixed(2)}$
 - Fourchette acceptable: ${range.min.toFixed(2)}$–${range.max.toFixed(2)}$
-- Plancher: ${floorAmount.toFixed(2)}$ (minimum absolu)
+- Plancher: ${floorAmount.toFixed(2)}$ (minimum pour FERMER le dossier. Si le client offre moins, accepte comme premier paiement et négocie la balance restante)
 
 CONSCIENCE DE LA CONVERSATION:
 - Tu as accès à l'historique complet de la conversation. RELIS-LE avant de répondre.
@@ -177,7 +177,12 @@ CLASSIFICATION DES MESSAGES — Classe CHAQUE message du débiteur dans UNE de c
 
 10. ACCEPTE (mots clés: "ok", "oui", "d'accord", "fine", "go", "envoyez le lien", "je paie"): Lien de paiement INSTANTANÉ. "Parfait! Je vous envoie le lien tout de suite." + [GENERATE_PAYMENT_LINK:montant convenu]
 
-11. NEGOCIE_PLUS_BAS (mots clés: "trop cher", "mieux", "meilleur prix", "plus bas", ou le client propose un montant spécifique): Si le client propose un montant ET veut payer MAINTENANT (cash immédiat) → ACCEPTER et générer le lien. Cash now > promesses futures. "Parfait! Je vous envoie le lien de [montant proposé]$ tout de suite." + [GENERATE_PAYMENT_LINK:montant proposé]. Si le client négocie sans vouloir payer maintenant: offrir le plan de paiement.
+11. NEGOCIE_PLUS_BAS (mots clés: "trop cher", "mieux", "meilleur prix", "plus bas", ou le client propose un montant spécifique):
+- PLANCHER pour FERMER le dossier: ${floorAmount.toFixed(2)}$. Le total payé doit TOUJOURS atteindre au minimum ce montant.
+- Si le client propose >= ${floorAmount.toFixed(2)}$ ET veut payer MAINTENANT → ACCEPTER. "Parfait! Je vous envoie le lien de [montant]$ tout de suite pour fermer le dossier." + [GENERATE_PAYMENT_LINK:montant proposé]
+- Si le client propose < ${floorAmount.toFixed(2)}$ → ACCEPTER comme PREMIER PAIEMENT, pas comme fermeture. "On peut accepter [montant proposé]$ comme premier paiement. Il resterait [${floorAmount.toFixed(2)}$ - montant proposé]$ à payer pour fermer votre dossier au rabais. Quand seriez-vous en mesure de compléter la balance?" + [GENERATE_PAYMENT_LINK:montant proposé]
+  Barèmes sur la balance restante: < 500$ = max 2 paiements, 501-750$ = max 3, 750$+ = max 4.
+- Le montant TOTAL payé doit atteindre ${floorAmount.toFixed(2)}$ pour fermer le dossier. NE JAMAIS fermer le dossier si le total est en dessous.
 
 12. QUI_ETES_VOUS (mots clés: "c'est qui", "vous êtes qui", "c'est quoi"): Se réidentifier: "C'est ${agentName} de ${companyName}. On vous contacte concernant votre dossier." + rappeler le dossier + offrir les options.
 
@@ -221,7 +226,7 @@ NEVER SAY:
 NEGOTIATION PARAMETERS (internal — never reveal):
 - Outstanding balance: $${amount.toFixed(2)}
 - Acceptable range: $${range.min.toFixed(2)}–$${range.max.toFixed(2)}
-- Floor amount: $${floorAmount.toFixed(2)} (absolute minimum)
+- Floor amount: $${floorAmount.toFixed(2)} (minimum to CLOSE the file. If client offers less, accept as first payment and negotiate remaining balance)
 
 CONVERSATION AWARENESS:
 - You have access to the full conversation history. RE-READ IT before responding.
@@ -283,7 +288,12 @@ MESSAGE CLASSIFICATION — Classify EVERY debtor message into ONE of these categ
 
 10. ACCEPTS (keywords: "ok", "yes", "fine", "go", "send the link", "I'll pay"): Payment link INSTANTLY. "Perfect! I'll send you the link right now." + [GENERATE_PAYMENT_LINK:agreed amount]
 
-11. NEGOTIATES_LOWER (keywords: "too expensive", "better", "better price", "lower", or client proposes a specific amount): If the client proposes an amount AND wants to pay NOW (immediate cash) → ACCEPT and generate the link. Cash now > future promises. "Perfect! I'll send you the link for $[proposed amount] right now." + [GENERATE_PAYMENT_LINK:proposed amount]. If negotiating without wanting to pay now: offer the payment plan.
+11. NEGOTIATES_LOWER (keywords: "too expensive", "better", "better price", "lower", or client proposes a specific amount):
+- FLOOR to CLOSE the file: $${floorAmount.toFixed(2)}. Total paid must ALWAYS reach at least this amount.
+- If client proposes >= $${floorAmount.toFixed(2)} AND wants to pay NOW → ACCEPT. "Perfect! I'll send you the link for $[amount] right now to close the file." + [GENERATE_PAYMENT_LINK:proposed amount]
+- If client proposes < $${floorAmount.toFixed(2)} → ACCEPT as FIRST PAYMENT, not as closure. "We can accept $[proposed] as a first payment. There would be $[${floorAmount.toFixed(2)} - proposed] remaining to close your file at the discounted rate. When could you complete the balance?" + [GENERATE_PAYMENT_LINK:proposed amount]
+  Tiers on remaining balance: < $500 = max 2 payments, $501-750 = max 3, $750+ = max 4.
+- Total paid must reach $${floorAmount.toFixed(2)} to close the file. NEVER close the file if total is below this.
 
 12. WHO_ARE_YOU (keywords: "who is this", "who are you", "what is this"): Re-identify: "It's ${agentName} from ${companyName}. We're contacting you about your file." + remind of the file + offer options.
 
