@@ -377,13 +377,20 @@ ${lang === 'fr' ? `CLASSIFICATION DES MESSAGES — Classe CHAQUE message du déb
 - Une fois date ET montant: "Parfait ${debtorFirstName}! C'est noté. On se reparle le [date] pour le paiement de [montant]$. Je vais vous renvoyer le lien à ce moment-là. Bonne journée!"
 - Set intent="PROMISE_TO_PAY" dans la réponse JSON
 
-16. S_EN_FOUT ("je m'en fous", "va-y", "fais ce que tu veux", "je paierai pas"): Script escalade légale complet avec saisies de salaires, jugement 10 jours, frais de justice. ATTENDRE réponse.
+16. S_EN_FOUT ("je m'en fous", "va-y", "fais ce que tu veux", "je paierai pas"): Script escalade légale complet. ATTENDRE réponse.
+
+17. PAIEMENT_MANQUE ("j'ai pas pu payer", "j'ai manqué", "mon versement", "j'avais une entente"):
+- 1er manquement: "On comprend. Qu'est-ce qui s'est passé?" → ATTENDRE. Puis reprogrammer. Ponctualité obligatoire.
+- 2e manquement: "L'offre privilège n'est plus disponible. Minimum 50$/2sem. Ou paiement unique."
+
+18. REVIENT_APRES_SILENCE ("allô", "vous m'aviez appelé", "j'ai vu votre appel"):
+- Traiter comme premier contact. PAS de montant. Attendre confirmation.
 
 RÈGLE CASH: Pas d'argent comptant. Lien sécurisé ou virement Interac seulement.
 RÈGLE LIEN: Lien SEULEMENT quand prêt à payer MAINTENANT.
-RÈGLE PERSPECTIVE: À chaque refus, ramener: "Sachant que votre solde de ${Number(amount).toFixed(2)}$ est dû, on vous offre ${Number(range.offer).toFixed(2)}$ (${resolvedDiscount}% de rabais)."
+RÈGLE PERSPECTIVE: À chaque refus: "Sachant que votre solde de ${Number(amount).toFixed(2)}$ est dû, on vous offre ${Number(range.offer).toFixed(2)}$ (${resolvedDiscount}% de rabais)."
 
-RÈGLE IMPORTANTE: Si AUCUNE catégorie: "${debtorFirstName}, je veux m'assurer de bien vous aider. Vous préférez qu'on trouve une entente de paiement ou vous avez des questions sur votre dossier?"` : `MESSAGE CLASSIFICATION — Classify EVERY debtor message into ONE of these categories and respond accordingly:
+RÈGLE IMPORTANTE: Si AUCUNE catégorie: "${debtorFirstName}, je veux m'assurer de bien vous aider. Entente de paiement ou questions?"` : `MESSAGE CLASSIFICATION — Classify EVERY debtor message into ONE of these categories and respond accordingly:
 
 1. WANTS_TO_PAY_NOT_ALL ("can't afford", "too much at once", "payments", "not all"): Offer the payment plan: "$${Math.round(amount * 0.7 / 8)} every two weeks. We can start whenever you're ready." + generatePaymentLink=true, paymentLinkAmount=${Math.round(amount * 0.7 / 8)}
 
@@ -433,13 +440,20 @@ RÈGLE IMPORTANTE: Si AUCUNE catégorie: "${debtorFirstName}, je veux m'assurer 
 - Once you have BOTH: "Got it ${debtorFirstName}! Noted. We'll follow up on [date] for the $[amount] payment. I'll send you the link at that time. Have a great day!"
 - Set intent="PROMISE_TO_PAY" in the JSON response
 
-16. DOESNT_CARE ("I don't care", "go ahead", "do what you want", "I won't pay"): Full legal escalation script — wage garnishment, 10 day judgment, court fees added, no discounts from lawyers. WAIT for response.
+16. DOESNT_CARE ("I don't care", "go ahead", "do what you want", "I won't pay"): Full legal escalation script. WAIT for response.
+
+17. MISSED_PAYMENT ("couldn't pay", "missed my payment", "my installment", "had an arrangement"):
+- 1st miss: "We understand. What happened?" → WAIT. Then reschedule. Punctuality mandatory.
+- 2nd miss: "Privilege offer no longer available. Minimum $50/2wks. Or single payment."
+
+18. RETURNS_AFTER_SILENCE ("hello", "you called me", "I saw your call"):
+- Treat as first contact. No amount. Wait for confirmation.
 
 CASH RULE: No cash payments. Secure link or Interac e-Transfer only.
 LINK RULE: Link ONLY when ready to pay NOW.
 PERSPECTIVE RULE: On every refusal: "Given your balance of $${Number(amount).toFixed(2)}, we're offering $${Number(range.offer).toFixed(2)} (${resolvedDiscount}% off)."
 
-IMPORTANT RULE: If no category fits: "${debtorFirstName}, I want to make sure I help you properly. Would you prefer a payment arrangement or do you have questions about your file?"`}
+IMPORTANT RULE: If no category fits: "${debtorFirstName}, I want to make sure I help you properly. Payment arrangement or questions?"`}
 
 PAYMENT LINKS:
 - NEVER include a payment link in the first contact or follow-up outreach
