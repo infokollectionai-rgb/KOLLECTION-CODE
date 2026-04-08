@@ -195,6 +195,8 @@ router.post('/negotiation/suggest', async (req, res) => {
     agentName = 'Sophie',
     companyId,
     paymentLinkUrl,
+    customRules,
+    debtorName,
   } = req.body;
 
   if (!debtorId || amount === undefined || amount === null) {
@@ -223,7 +225,7 @@ router.post('/negotiation/suggest', async (req, res) => {
   const floorAmount = floor ?? amount * 0.3;
   const clientCompanyName = companyName ?? companyRecord?.company_name ?? 'a collections agency';
   const resolvedAgentName = companyRecord?.voice_agent_name ?? agentName;
-  const debtorFirstName = debtorRecord?.first_name ?? debtorRecord?.name?.split(' ')[0] ?? 'Client';
+  const debtorFirstName = debtorName || (debtorRecord?.first_name ?? debtorRecord?.name?.split(' ')[0] ?? 'Client');
   const debtorLastName = debtorRecord?.name?.split(' ').slice(1).join(' ') ?? '';
 
   // Detect language from debtor phone area code
@@ -445,6 +447,10 @@ Always respond with a valid JSON object — no markdown, no extra text:
       role:    'user',
       content: `[System: Generate a FIRST MESSAGE using the curiosity hook strategy. Use first name "${debtorFirstName}" only. Do NOT mention any dollar amount, balance, "impayé", "overdue", or negative debt language. Frame it as good news about their loan file. Make them want to respond.]`,
     });
+  }
+
+  if (customRules && customRules.trim()) {
+    systemPrompt += "\n\n=== RÈGLES ADDITIONNELLES (PRIORITÉ HAUTE — TOUJOURS RESPECTER) ===\n" + customRules + "\n=== FIN RÈGLES ===";
   }
 
   try {
