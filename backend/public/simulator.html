@@ -11,60 +11,65 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;height:100vh;overflow:hidden}
 #root{display:flex;height:100vh}
-.sidebar{width:320px;background:#1e293b;border-right:1px solid #334155;display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
-.sidebar h2{padding:16px;font-size:14px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between}
-.sidebar h2 .badge{background:#2563eb;color:#fff;font-size:11px;padding:1px 7px;border-radius:10px;font-weight:600}
-.sidebar-section{padding:12px 16px;border-bottom:1px solid #334155}
-.sidebar-section label{display:block;font-size:12px;color:#94a3b8;margin-bottom:4px}
-.sidebar-section input,.sidebar-section select{width:100%;padding:6px 8px;background:#0f172a;border:1px solid #334155;border-radius:4px;color:#e2e8f0;font-size:13px}
-.scenario-list{flex:1;overflow-y:auto}
-.scenario-btn{display:block;width:100%;text-align:left;padding:10px 16px;background:none;border:none;border-bottom:1px solid #1e293b;color:#cbd5e1;font-size:13px;cursor:pointer;transition:background .15s}
-.scenario-btn:hover{background:#334155}
-.scenario-btn.active{background:#2563eb;color:#fff}
+.sidebar{width:280px;background:#1e293b;border-right:1px solid #334155;display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.sidebar h2{padding:10px 12px;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
+.sidebar h2 .badge{background:#2563eb;color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;font-weight:600}
+.sidebar h2 .chevron{font-size:10px;transition:transform .2s}
+.sidebar h2 .chevron.open{transform:rotate(90deg)}
+.sidebar-section{padding:8px 12px;border-bottom:1px solid #334155}
+.sidebar-section label{display:block;font-size:11px;color:#94a3b8;margin-bottom:2px}
+.sidebar-section input,.sidebar-section select{width:100%;padding:4px 6px;background:#0f172a;border:1px solid #334155;border-radius:4px;color:#e2e8f0;font-size:12px}
+.sc-btn{display:block;width:100%;text-align:left;padding:4px 10px;background:none;border:none;border-bottom:1px solid #0f172a;color:#cbd5e1;font-size:10px;cursor:pointer;transition:background .1s;line-height:1.6}
+.sc-btn:hover{background:#334155}
+.sc-btn.active{background:#2563eb;color:#fff}
+.sc-btn .sc-num{color:#64748b;font-weight:600;margin-right:3px}
+.sc-btn.active .sc-num{color:#93c5fd}
+.sc-custom{position:relative}
+.sc-custom .sc-del{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:#ef4444;cursor:pointer;font-size:11px;opacity:0;transition:opacity .1s}
+.sc-custom:hover .sc-del{opacity:1}
+.add-sc-btn{display:block;width:100%;padding:6px 10px;background:none;border:none;border-bottom:1px solid #334155;color:#2563eb;font-size:10px;cursor:pointer;text-align:left}
+.add-sc-btn:hover{background:#334155}
 .main{flex:1;display:flex;flex-direction:column;min-width:0}
-.header{padding:12px 20px;background:#1e293b;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between}
-.header h1{font-size:18px;font-weight:600}
-.header-actions{display:flex;gap:8px}
-.header-actions button{padding:6px 14px;border-radius:6px;border:none;font-size:12px;cursor:pointer;font-weight:500}
+.header{padding:10px 16px;background:#1e293b;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:16px;font-weight:600}
+.header-actions{display:flex;gap:6px}
+.header-actions button{padding:5px 12px;border-radius:6px;border:none;font-size:11px;cursor:pointer;font-weight:500}
 .btn-reset{background:#334155;color:#e2e8f0}
 .btn-export{background:#2563eb;color:#fff}
-.chat{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:12px}
-.msg{max-width:75%;padding:10px 14px;border-radius:12px;font-size:14px;line-height:1.5;position:relative;word-wrap:break-word}
+.chat{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:78%;padding:9px 13px;border-radius:12px;font-size:13px;line-height:1.5;position:relative;word-wrap:break-word;white-space:pre-wrap}
 .msg-user{align-self:flex-end;background:#2563eb;color:#fff;border-bottom-right-radius:4px}
 .msg-ai{align-self:flex-start;background:#334155;color:#e2e8f0;border-bottom-left-radius:4px}
-.msg-ai .intent-badge{display:inline-block;font-size:10px;background:#475569;padding:2px 6px;border-radius:3px;margin-top:6px;color:#94a3b8}
-.msg-ai .correction-btn{position:absolute;top:4px;right:4px;background:none;border:none;cursor:pointer;font-size:14px;opacity:0;transition:opacity .15s}
+.msg-ai .intent-badge{display:inline-block;font-size:9px;background:#475569;padding:1px 5px;border-radius:3px;margin-top:4px;color:#94a3b8}
+.msg-ai .correction-btn{position:absolute;top:3px;right:3px;background:none;border:none;cursor:pointer;font-size:13px;opacity:0;transition:opacity .1s}
 .msg-ai:hover .correction-btn{opacity:1}
-.msg-system{align-self:center;background:#1e293b;color:#94a3b8;font-size:12px;font-style:italic;max-width:90%}
+.msg-system{align-self:center;background:#1e293b;color:#94a3b8;font-size:11px;font-style:italic;max-width:90%}
 .corrected{border:2px solid #f59e0b}
-.input-bar{padding:12px 20px;background:#1e293b;border-top:1px solid #334155;display:flex;gap:8px}
-.input-bar input{flex:1;padding:10px 14px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:14px;outline:none}
+.input-bar{padding:10px 16px;background:#1e293b;border-top:1px solid #334155;display:flex;gap:6px}
+.input-bar input{flex:1;padding:9px 12px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:13px;outline:none}
 .input-bar input:focus{border-color:#2563eb}
-.input-bar button{padding:10px 20px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:500}
+.input-bar button{padding:9px 18px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:500}
 .input-bar button:disabled{opacity:.5;cursor:not-allowed}
-.loading{display:inline-block;width:8px;height:8px;border-radius:50%;background:#94a3b8;animation:blink 1.4s infinite both}
+.loading{display:inline-block;width:7px;height:7px;border-radius:50%;background:#94a3b8;animation:blink 1.4s infinite both}
 .loading:nth-child(2){animation-delay:.2s}.loading:nth-child(3){animation-delay:.4s}
 @keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:100}
-.modal{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;width:480px;max-width:90vw}
-.modal h3{margin-bottom:12px;font-size:16px}
-.modal textarea{width:100%;height:100px;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:8px;font-size:13px;resize:vertical}
-.modal-actions{display:flex;gap:8px;margin-top:12px;justify-content:flex-end}
-.modal-actions button{padding:8px 16px;border-radius:6px;border:none;cursor:pointer;font-size:13px}
-.stats{padding:8px 16px;background:#0f172a;border-bottom:1px solid #334155;display:flex;gap:16px;font-size:11px;color:#64748b}
+.modal{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px;width:460px;max-width:90vw}
+.modal h3{margin-bottom:10px;font-size:15px}
+.modal textarea,.modal input[type=text]{width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:7px;font-size:12px;resize:vertical}
+.modal textarea{height:90px}
+.modal-actions{display:flex;gap:6px;margin-top:10px;justify-content:flex-end}
+.modal-actions button{padding:7px 14px;border-radius:6px;border:none;cursor:pointer;font-size:12px}
+.stats{padding:6px 16px;background:#0f172a;border-bottom:1px solid #334155;display:flex;gap:14px;font-size:10px;color:#64748b}
 .stats span{color:#94a3b8}
-.rules-panel{background:#0f172a;border-bottom:1px solid #334155;max-height:0;overflow:hidden;transition:max-height .3s ease}
-.rules-panel.open{max-height:400px;overflow-y:auto}
-.rules-panel-inner{padding:12px 16px}
-.rules-panel-inner .rule-input-row{display:flex;gap:6px;margin-bottom:8px}
-.rules-panel-inner .rule-input-row textarea{flex:1;padding:6px 8px;background:#1e293b;border:1px solid #334155;border-radius:4px;color:#e2e8f0;font-size:12px;resize:none;height:36px}
-.rules-panel-inner .rule-input-row button{padding:4px 12px;background:#2563eb;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer;white-space:nowrap}
-.rule-item{display:flex;align-items:flex-start;gap:6px;padding:6px 0;border-bottom:1px solid #1e293b;font-size:12px;line-height:1.4}
-.rule-item .rule-num{color:#2563eb;font-weight:600;min-width:18px}
+.rule-item{display:flex;align-items:flex-start;gap:4px;padding:4px 0;border-bottom:1px solid #1e293b;font-size:11px;line-height:1.3}
+.rule-item .rule-num{color:#2563eb;font-weight:600;min-width:16px}
 .rule-item .rule-text{flex:1;color:#cbd5e1}
-.rule-item .rule-del{background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0 4px;line-height:1}
-.toggle-rules-btn{background:none;border:1px solid #334155;color:#94a3b8;padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;transition:all .15s}
-.toggle-rules-btn:hover{border-color:#2563eb;color:#e2e8f0}
+.rule-item .rule-del{background:none;border:none;color:#ef4444;cursor:pointer;font-size:12px;padding:0 3px;line-height:1}
+.collapsible{overflow:hidden;transition:max-height .25s ease;max-height:0}
+.collapsible.open{max-height:600px}
+.hint-bar{padding:5px 16px;background:#1e3a5f;border-bottom:1px solid #334155;font-size:11px;color:#93c5fd;display:flex;align-items:center;gap:8px}
+.hint-bar button{background:#2563eb;color:#fff;border:none;padding:3px 10px;border-radius:4px;font-size:10px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -74,261 +79,147 @@ const { useState, useRef, useEffect, useCallback } = React;
 
 const LS_RULES = 'kollection_sim_rules';
 const LS_CORRECTIONS = 'kollection_sim_corrections';
-
-function loadLS(key, fallback) {
-  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
-}
+function loadLS(key, fb) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fb; } catch { return fb; } }
 
 const SCENARIOS = [
-  { id: 1, label: "Premier contact (curieux)", msg: "Oui c'est moi, c'est quoi?" },
-  { id: 2, label: "Veut payer mais pas tout", msg: "Je peux pas payer 1000$ d'un coup" },
-  { id: 3, label: "Pas d'argent du tout", msg: "J'ai pas d'argent, je suis au chomage" },
-  { id: 4, label: "Promet vendredi", msg: "Je peux payer vendredi quand je recois ma paye" },
-  { id: 5, label: "Agressif / insultes", msg: "Calisse lache moi avec ca" },
-  { id: 6, label: "Nie la dette (1er)", msg: "C'est pas moi, j'ai jamais pris de pret" },
-  { id: 7, label: "Nie la dette (maintient)", msg: "Je vous dis que c'est pas moi, j'ai rien signe" },
-  { id: 8, label: "Demande son solde", msg: "C'est combien mon solde exactement?" },
-  { id: 9, label: "Menace avocat", msg: "Je vais appeler mon avocat" },
-  { id: 10, label: "Mentionne l'OPC", msg: "Je vais appeler l'OPC vous avez pas le droit" },
-  { id: 11, label: "Frustre (sans OPC)", msg: "STOP arretez de m'ecrire c'est du harcelement" },
-  { id: 12, label: "Accepte le rabais", msg: "Ok je vais prendre le rabais, envoyez le lien" },
-  { id: 13, label: "Negocie plus bas (cash)", msg: "Je peux faire 400$ cash la maintenant" },
-  { id: 14, label: "Qui etes-vous?", msg: "C'est qui ca? C'est quoi ce numero?" },
-  { id: 15, label: "Promesse future", msg: "Je peux pas la mais le mois prochain oui" },
-  { id: 16, label: "Paiement partiel fait", msg: "J'ai deja paye 200$ la semaine passee" },
-  { id: 17, label: "Paiement manque (relance)", msg: "J'avais une entente mais j'ai pas pu payer mon deuxieme versement" },
-  { id: 18, label: "Client revient apres silence", msg: "Oui allo, vous m'aviez appele?" },
+  { id:1,  label:"Premier contact",           msg:"Oui c'est moi, c'est quoi?" },
+  { id:2,  label:"Veut un plan",              msg:"Je peux pas payer 1000$ d'un coup" },
+  { id:3,  label:"Pas d'argent",              msg:"J'ai pas d'argent, je suis au chomage" },
+  { id:4,  label:"Promet vendredi",           msg:"Je peux payer vendredi quand je recois ma paye" },
+  { id:5,  label:"Agressif",                  msg:"Calisse lache moi avec ca" },
+  { id:6,  label:"Nie la dette (1er)",        msg:"C'est pas moi, j'ai jamais pris de pret" },
+  { id:7,  label:"Nie la dette (maintient)",  msg:"Je vous dis que c'est pas moi, j'ai rien signe" },
+  { id:8,  label:"Demande solde",             msg:"C'est combien mon solde exactement?" },
+  { id:9,  label:"Menace avocat",             msg:"Je vais appeler mon avocat" },
+  { id:10, label:"OPC = STOP",               msg:"Je vais appeler l'OPC vous avez pas le droit" },
+  { id:11, label:"Frustre (pas OPC)",         msg:"STOP arretez de m'ecrire c'est du harcelement" },
+  { id:12, label:"Accepte le rabais",         msg:"Ok je vais prendre le rabais, envoyez le lien" },
+  { id:13, label:"Negocie + bas",             msg:"Je peux faire 400$ cash la maintenant" },
+  { id:14, label:"C'est qui?",               msg:"C'est qui ca? C'est quoi ce numero?" },
+  { id:15, label:"Promesse future",           msg:"Je peux pas la mais le mois prochain oui" },
+  { id:16, label:"Paiement partiel",          msg:"J'ai deja paye 200$ la semaine passee" },
+  { id:17, label:"Paiement manque",           msg:"J'avais une entente mais j'ai pas pu payer mon deuxieme versement" },
+  { id:18, label:"Revient apres silence",     msg:"Oui allo, vous m'aviez appele?" },
 ];
 
 function App() {
-  const [config, setConfig] = useState({
-    name: "Jean Tremblay", creditor: "CreditFina", amount: 1000,
-    language: "fr", agentName: "Sophie", tier: 1, phone: "+15141234567"
-  });
+  const [config, setConfig] = useState({ name:"Jean Tremblay", creditor:"CreditFina", amount:1000, language:"fr", agentName:"Sophie", tier:1, phone:"+15141234567" });
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [corrections, setCorrections] = useState(() => loadLS(LS_CORRECTIONS, []));
   const [rules, setRules] = useState(() => loadLS(LS_RULES, []));
   const [ruleInput, setRuleInput] = useState("");
-  const [rulesOpen, setRulesOpen] = useState(false);
   const [editingIdx, setEditingIdx] = useState(null);
   const [editNote, setEditNote] = useState("");
-  const [correctionMode, setCorrectionMode] = useState('correction'); // 'correction' or 'rule'
+  const [correctionMode, setCorrectionMode] = useState('correction');
   const [activeScenario, setActiveScenario] = useState(null);
+  const [customScenarios, setCustomScenarios] = useState([]);
+  const [showAddSc, setShowAddSc] = useState(false);
+  const [newScTitle, setNewScTitle] = useState("");
+  const [newScMsg, setNewScMsg] = useState("");
+  const [configOpen, setConfigOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
   const chatRef = useRef(null);
 
-  // Persist rules & corrections to localStorage
   useEffect(() => { localStorage.setItem(LS_RULES, JSON.stringify(rules)); }, [rules]);
   useEffect(() => { localStorage.setItem(LS_CORRECTIONS, JSON.stringify(corrections)); }, [corrections]);
+  useEffect(() => { if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight; }, [messages, loading]);
 
-  useEffect(() => {
-    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
-  }, [messages, loading]);
+  const allScenarios = [...SCENARIOS, ...customScenarios];
 
-  const buildHistory = useCallback((msgs) => {
-    return msgs.filter(m => m.role !== 'system').map(m => ({
-      role: m.role === 'user' ? 'debtor' : 'agent',
-      content: m.content
-    }));
-  }, []);
-
-  const buildCustomRules = useCallback(() => {
-    if (rules.length === 0) return undefined;
-    return rules.map((r, i) => `${i + 1}. ${r}`).join('\n');
-  }, [rules]);
+  const buildHistory = useCallback((msgs) => msgs.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'user' ? 'debtor' : 'agent', content: m.content })), []);
+  const buildCustomRules = useCallback(() => rules.length === 0 ? undefined : rules.map((r,i) => `${i+1}. ${r}`).join('\n'), [rules]);
 
   const sendMessage = useCallback(async (text) => {
     if (!text.trim() || loading) return;
-    const userMsg = { role: 'user', content: text.trim() };
+    const userMsg = { role:'user', content:text.trim() };
     const newMsgs = [...messages, userMsg];
-    setMessages(newMsgs);
-    setInput("");
-    setLoading(true);
-
+    setMessages(newMsgs); setInput(""); setLoading(true);
     try {
-      const body = {
-        debtorId: "test-simulator",
-        debtorName: config.name.split(' ')[0],
-        debtorPhone: config.phone,
-        amount: Number(config.amount),
-        companyName: config.creditor,
-        agentName: config.agentName,
-        tier: Number(config.tier),
-        floor: Number(config.amount) * 0.3,
-        conversationHistory: buildHistory(newMsgs),
-      };
-      const cr = buildCustomRules();
-      if (cr) body.customRules = cr;
-
-      const res = await fetch('/agents/negotiation/suggest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
+      const body = { debtorId:"test-simulator", debtorName:config.name.split(' ')[0], debtorPhone:config.phone, amount:Number(config.amount), companyName:config.creditor, agentName:config.agentName, tier:Number(config.tier), floor:Number(config.amount)*0.3, conversationHistory:buildHistory(newMsgs) };
+      const cr = buildCustomRules(); if (cr) body.customRules = cr;
+      const res = await fetch('/agents/negotiation/suggest', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
       const data = await res.json();
-      const aiText = data.message || data.error || "Erreur: pas de reponse";
-      const intent = data.intent || "UNKNOWN";
-      setMessages(prev => [...prev, { role: 'ai', content: aiText, intent, raw: data }]);
-    } catch (err) {
-      setMessages(prev => [...prev, { role: 'ai', content: `Erreur: ${err.message}`, intent: 'ERROR' }]);
-    }
+      setMessages(prev => [...prev, { role:'ai', content:data.message||data.error||"Erreur", intent:data.intent||"UNKNOWN", raw:data }]);
+    } catch (err) { setMessages(prev => [...prev, { role:'ai', content:`Erreur: ${err.message}`, intent:'ERROR' }]); }
     setLoading(false);
   }, [messages, loading, config, buildHistory, buildCustomRules]);
 
-  const handleScenario = (sc) => {
-    setActiveScenario(sc.id);
-    setInput(sc.msg);
-  };
-
-  const resetChat = () => {
-    setMessages([{ role: 'system', content: `Nouvelle conversation. Debiteur: ${config.name}, Creancier: ${config.creditor}, Montant: ${config.amount}$, Tier: ${config.tier}` }]);
-    setActiveScenario(null);
-  };
-
-  const addRule = () => {
-    if (!ruleInput.trim()) return;
-    setRules(prev => [...prev, ruleInput.trim()]);
-    setRuleInput("");
-  };
-
-  const removeRule = (idx) => {
-    setRules(prev => prev.filter((_, i) => i !== idx));
-  };
-
-  const startCorrection = (idx) => {
-    setEditingIdx(idx);
-    setEditNote("");
-    setCorrectionMode('correction');
-  };
+  const handleScenario = (sc) => { setActiveScenario(sc.id); setInput(sc.msg); };
+  const resetChat = () => { setMessages([{ role:'system', content:`Nouvelle convo — ${config.name} | ${config.creditor} | ${config.amount}$ | Tier ${config.tier}` }]); setActiveScenario(null); };
+  const addRule = () => { if (!ruleInput.trim()) return; setRules(prev => [...prev, ruleInput.trim()]); setRuleInput(""); };
+  const removeRule = (idx) => setRules(prev => prev.filter((_,i) => i !== idx));
+  const startCorrection = (idx) => { setEditingIdx(idx); setEditNote(""); setCorrectionMode('correction'); };
 
   const saveCorrection = () => {
     if (editingIdx === null) return;
-    if (correctionMode === 'rule') {
-      // Add as a permanent rule
-      if (editNote.trim()) {
-        setRules(prev => [...prev, editNote.trim()]);
-        setMessages(prev => prev.map((m, i) => i === editingIdx ? { ...m, corrected: true } : m));
-      }
-      setEditingIdx(null);
-      return;
-    }
+    if (correctionMode === 'rule') { if (editNote.trim()) setRules(prev => [...prev, editNote.trim()]); setMessages(prev => prev.map((m,i) => i===editingIdx ? {...m, corrected:true} : m)); setEditingIdx(null); return; }
     const msg = messages[editingIdx];
-    const correction = {
-      timestamp: new Date().toISOString(),
-      messageIndex: editingIdx,
-      aiMessage: msg.content,
-      intent: msg.intent,
-      correction: editNote,
-      config: { ...config },
-      activeRules: [...rules],
-      conversationContext: messages.slice(Math.max(0, editingIdx - 2), editingIdx + 1).map(m => ({ role: m.role, content: m.content }))
-    };
-    setCorrections(prev => [...prev, correction]);
-    setMessages(prev => prev.map((m, i) => i === editingIdx ? { ...m, corrected: true } : m));
-    setEditingIdx(null);
+    setCorrections(prev => [...prev, { timestamp:new Date().toISOString(), messageIndex:editingIdx, aiMessage:msg.content, intent:msg.intent, correction:editNote, config:{...config}, activeRules:[...rules], conversationContext:messages.slice(Math.max(0,editingIdx-2),editingIdx+1).map(m=>({role:m.role,content:m.content})) }]);
+    setMessages(prev => prev.map((m,i) => i===editingIdx ? {...m, corrected:true} : m)); setEditingIdx(null);
   };
 
-  const exportCorrections = () => {
-    const promptAdditions = rules.length > 0
-      ? "=== REGLES ADDITIONNELLES (PRIORITE HAUTE) ===\n" + rules.map((r, i) => `${i+1}. ${r}`).join('\n') + "\n=== FIN REGLES ==="
-      : null;
-    const blob = new Blob([JSON.stringify({
-      exportedAt: new Date().toISOString(),
-      config,
-      totalMessages: messages.length,
-      rules,
-      promptAdditions,
-      corrections
-    }, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `kollection-corrections-${Date.now()}.json`; a.click();
-    URL.revokeObjectURL(url);
+  const exportData = () => {
+    const promptAdditions = rules.length > 0 ? "=== REGLES ADDITIONNELLES ===\n" + rules.map((r,i) => `${i+1}. ${r}`).join('\n') + "\n=== FIN ===" : null;
+    const blob = new Blob([JSON.stringify({ exportedAt:new Date().toISOString(), config, totalMessages:messages.length, rules, promptAdditions, customScenarios, corrections }, null, 2)], { type:'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `kollection-${Date.now()}.json`; a.click();
   };
 
-  const clearAllData = () => {
-    if (confirm('Effacer toutes les corrections et regles?')) {
-      setCorrections([]);
-      setRules([]);
-      localStorage.removeItem(LS_RULES);
-      localStorage.removeItem(LS_CORRECTIONS);
-    }
+  const clearAll = () => { if (confirm('Effacer tout?')) { setCorrections([]); setRules([]); setCustomScenarios([]); localStorage.removeItem(LS_RULES); localStorage.removeItem(LS_CORRECTIONS); }};
+
+  const addCustomScenario = () => {
+    if (!newScTitle.trim() || !newScMsg.trim()) return;
+    setCustomScenarios(prev => [...prev, { id: 100 + prev.length, label: newScTitle.trim(), msg: newScMsg.trim(), custom: true }]);
+    setNewScTitle(""); setNewScMsg(""); setShowAddSc(false);
   };
+  const removeCustomScenario = (id) => setCustomScenarios(prev => prev.filter(s => s.id !== id));
 
   useEffect(() => { resetChat(); }, []);
-
-  const updateConfig = (key, val) => setConfig(prev => ({ ...prev, [key]: val }));
+  const updateConfig = (k,v) => setConfig(prev => ({...prev, [k]:v}));
 
   return (
     <>
       <div className="sidebar">
-        <h2>Config Debiteur</h2>
-        <div className="sidebar-section">
-          <label>Nom</label>
-          <input value={config.name} onChange={e => updateConfig('name', e.target.value)} />
-        </div>
-        <div className="sidebar-section">
-          <label>Creancier</label>
-          <input value={config.creditor} onChange={e => updateConfig('creditor', e.target.value)} />
-        </div>
-        <div className="sidebar-section">
-          <label>Montant ($)</label>
-          <input type="number" value={config.amount} onChange={e => updateConfig('amount', e.target.value)} />
-        </div>
-        <div className="sidebar-section">
-          <label>Telephone</label>
-          <input value={config.phone} onChange={e => updateConfig('phone', e.target.value)} />
-        </div>
-        <div className="sidebar-section">
-          <label>Langue</label>
-          <select value={config.language} onChange={e => updateConfig('language', e.target.value)}>
-            <option value="fr">Francais</option>
-            <option value="en">English</option>
-          </select>
-        </div>
-        <div className="sidebar-section">
-          <label>Agent</label>
-          <input value={config.agentName} onChange={e => updateConfig('agentName', e.target.value)} />
-        </div>
-        <div className="sidebar-section">
-          <label>Tier</label>
-          <select value={config.tier} onChange={e => updateConfig('tier', e.target.value)}>
-            <option value="1">1 - Friendly (0-14j)</option>
-            <option value="2">2 - Direct (15-60j)</option>
-            <option value="3">3 - Urgent (61-90j)</option>
-            <option value="4">4 - Final (90j+)</option>
-          </select>
-        </div>
-        <h2>
-          Regles {rules.length > 0 && <span className="badge">{rules.length}</span>}
-        </h2>
-        <div className="sidebar-section">
-          <div className="rule-input-row">
-            <textarea
-              value={ruleInput}
-              onChange={e => setRuleInput(e.target.value)}
-              placeholder="Ex: Ne jamais proposer de montant avant la reponse du client"
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addRule(); }}}
-            />
-            <button onClick={addRule} disabled={!ruleInput.trim()}>Ajouter</button>
-          </div>
-          {rules.map((r, i) => (
-            <div key={i} className="rule-item">
-              <span className="rule-num">{i + 1}.</span>
-              <span className="rule-text">{r}</span>
-              <button className="rule-del" onClick={() => removeRule(i)}>&#10005;</button>
+        <h2 style={{cursor:'default',padding:'12px'}}>Scenarios ({allScenarios.length})</h2>
+        <div>
+          {allScenarios.map(sc => (
+            <div key={sc.id} className={sc.custom ? 'sc-custom' : ''}>
+              <button className={`sc-btn ${activeScenario === sc.id ? 'active' : ''}`} onClick={() => handleScenario(sc)}>
+                <span className="sc-num">{sc.id}.</span>{sc.label}
+              </button>
+              {sc.custom && <button className="sc-del" onClick={e => { e.stopPropagation(); removeCustomScenario(sc.id); }}>&#10005;</button>}
             </div>
           ))}
-          {rules.length === 0 && <div style={{fontSize:11,color:'#475569',padding:'4px 0'}}>Aucune regle. Les regles sont envoyees au AI en priorite haute.</div>}
+          <button className="add-sc-btn" onClick={() => setShowAddSc(true)}>+ Ajouter un scenario</button>
         </div>
-        <h2>18 Scenarios</h2>
-        <div className="scenario-list">
-          {SCENARIOS.map(sc => (
-            <button key={sc.id} className={`scenario-btn ${activeScenario === sc.id ? 'active' : ''}`} onClick={() => handleScenario(sc)}>
-              {sc.id}. {sc.label}
-            </button>
-          ))}
+
+        <h2 onClick={() => setConfigOpen(!configOpen)}>
+          Config <span className="chevron" style={{transform:configOpen?'rotate(90deg)':'rotate(0)'}}>&#9656;</span>
+        </h2>
+        <div className={`collapsible ${configOpen ? 'open' : ''}`}>
+          <div className="sidebar-section"><label>Nom</label><input value={config.name} onChange={e=>updateConfig('name',e.target.value)} /></div>
+          <div className="sidebar-section"><label>Creancier</label><input value={config.creditor} onChange={e=>updateConfig('creditor',e.target.value)} /></div>
+          <div className="sidebar-section"><label>Montant ($)</label><input type="number" value={config.amount} onChange={e=>updateConfig('amount',e.target.value)} /></div>
+          <div className="sidebar-section"><label>Telephone</label><input value={config.phone} onChange={e=>updateConfig('phone',e.target.value)} /></div>
+          <div className="sidebar-section"><label>Langue</label><select value={config.language} onChange={e=>updateConfig('language',e.target.value)}><option value="fr">Francais</option><option value="en">English</option></select></div>
+          <div className="sidebar-section"><label>Agent</label><input value={config.agentName} onChange={e=>updateConfig('agentName',e.target.value)} /></div>
+          <div className="sidebar-section"><label>Tier</label><select value={config.tier} onChange={e=>updateConfig('tier',e.target.value)}><option value="1">1 - Friendly</option><option value="2">2 - Direct</option><option value="3">3 - Urgent</option><option value="4">4 - Final</option></select></div>
+        </div>
+
+        <h2 onClick={() => setRulesOpen(!rulesOpen)}>
+          Regles {rules.length > 0 && <span className="badge">{rules.length}</span>}
+          <span className="chevron" style={{transform:rulesOpen?'rotate(90deg)':'rotate(0)'}}>&#9656;</span>
+        </h2>
+        <div className={`collapsible ${rulesOpen ? 'open' : ''}`}>
+          <div className="sidebar-section">
+            <div style={{display:'flex',gap:4,marginBottom:6}}>
+              <textarea style={{flex:1,padding:'4px 6px',background:'#0f172a',border:'1px solid #334155',borderRadius:4,color:'#e2e8f0',fontSize:11,resize:'none',height:30}} value={ruleInput} onChange={e=>setRuleInput(e.target.value)} placeholder="Nouvelle regle..." onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();addRule();}}} />
+              <button style={{padding:'4px 8px',background:'#2563eb',color:'#fff',border:'none',borderRadius:4,fontSize:10,cursor:'pointer'}} onClick={addRule} disabled={!ruleInput.trim()}>+</button>
+            </div>
+            {rules.map((r,i) => (<div key={i} className="rule-item"><span className="rule-num">{i+1}.</span><span className="rule-text">{r}</span><button className="rule-del" onClick={()=>removeRule(i)}>&#10005;</button></div>))}
+            {rules.length===0 && <div style={{fontSize:10,color:'#475569',padding:'2px 0'}}>Aucune regle active.</div>}
+          </div>
         </div>
       </div>
 
@@ -337,82 +228,64 @@ function App() {
           <h1>KOLLECTION AI Simulator</h1>
           <div className="header-actions">
             <button className="btn-reset" onClick={resetChat}>Nouvelle convo</button>
-            <button className="btn-reset" onClick={clearAllData} style={{color:'#ef4444'}}>Tout effacer</button>
-            <button className="btn-export" onClick={exportCorrections} disabled={corrections.length === 0 && rules.length === 0}>
-              Export ({corrections.length})
-            </button>
+            <button className="btn-reset" onClick={clearAll} style={{color:'#ef4444'}}>Reset tout</button>
+            <button className="btn-export" onClick={exportData} disabled={corrections.length===0 && rules.length===0}>Export ({corrections.length})</button>
           </div>
         </div>
         <div className="stats">
-          Messages: <span>{messages.length}</span> | Corrections: <span>{corrections.length}</span> | Regles: <span>{rules.length}</span> | Tier: <span>{config.tier}</span> | Montant: <span>{config.amount}$</span>
+          Msgs: <span>{messages.length}</span> | Corrections: <span>{corrections.length}</span> | Regles: <span>{rules.length}</span> | Tier: <span>{config.tier}</span> | {config.amount}$
         </div>
-
-        {rules.length > 0 && (
-          <div style={{padding:'6px 16px',background:'#1e293b',borderBottom:'1px solid #334155',fontSize:11,color:'#f59e0b'}}>
-            {rules.length} regle{rules.length > 1 ? 's' : ''} active{rules.length > 1 ? 's' : ''} — envoyee{rules.length > 1 ? 's' : ''} au AI a chaque message
-          </div>
-        )}
+        {rules.length > 0 && <div style={{padding:'4px 16px',background:'#1e293b',borderBottom:'1px solid #334155',fontSize:10,color:'#f59e0b'}}>{rules.length} regle{rules.length>1?'s':''} active{rules.length>1?'s':''}</div>}
+        {activeScenario && <div className="hint-bar">
+          Scenario: {allScenarios.find(s=>s.id===activeScenario)?.label}
+          <button onClick={() => sendMessage(input)}>Envoyer</button>
+        </div>}
 
         <div className="chat" ref={chatRef}>
-          {messages.map((m, i) => (
-            <div key={i} className={`msg msg-${m.role} ${m.corrected ? 'corrected' : ''}`}>
+          {messages.map((m,i) => (
+            <div key={i} className={`msg msg-${m.role} ${m.corrected?'corrected':''}`}>
               {m.content}
-              {m.role === 'ai' && m.intent && <div className="intent-badge">{m.intent}</div>}
-              {m.role === 'ai' && (
-                <button className="correction-btn" onClick={() => startCorrection(i)} title="Corriger">&#9998;</button>
-              )}
+              {m.role==='ai' && m.intent && <div className="intent-badge">{m.intent}</div>}
+              {m.role==='ai' && <button className="correction-btn" onClick={()=>startCorrection(i)} title="Corriger">&#9998;</button>}
             </div>
           ))}
-          {loading && (
-            <div className="msg msg-ai">
-              <span className="loading"></span>&nbsp;<span className="loading"></span>&nbsp;<span className="loading"></span>
-            </div>
-          )}
+          {loading && <div className="msg msg-ai"><span className="loading"></span>&nbsp;<span className="loading"></span>&nbsp;<span className="loading"></span></div>}
         </div>
 
         <div className="input-bar">
-          <input
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && sendMessage(input)}
-            placeholder="Ecris comme un debiteur..."
-            disabled={loading}
-          />
-          <button onClick={() => sendMessage(input)} disabled={loading || !input.trim()}>Envoyer</button>
+          <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&sendMessage(input)} placeholder="Ecris comme un debiteur..." disabled={loading} />
+          <button onClick={()=>sendMessage(input)} disabled={loading||!input.trim()}>Envoyer</button>
         </div>
       </div>
 
       {editingIdx !== null && (
-        <div className="modal-overlay" onClick={() => setEditingIdx(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3>{correctionMode === 'correction' ? 'Corriger la reponse AI' : 'Ajouter une regle generale'}</h3>
-            <p style={{fontSize:12,color:'#94a3b8',marginBottom:8}}>Intent: {messages[editingIdx]?.intent}</p>
-            <p style={{fontSize:13,color:'#cbd5e1',marginBottom:12,padding:8,background:'#0f172a',borderRadius:6}}>{messages[editingIdx]?.content}</p>
-            <div style={{display:'flex',gap:4,marginBottom:10}}>
-              <button
-                onClick={() => { setCorrectionMode('correction'); setEditNote(''); }}
-                style={{flex:1,padding:'6px 0',border:'1px solid',borderColor:correctionMode==='correction'?'#2563eb':'#334155',background:correctionMode==='correction'?'#1e3a5f':'transparent',color:correctionMode==='correction'?'#93c5fd':'#94a3b8',borderRadius:4,cursor:'pointer',fontSize:12}}
-              >Corriger cette reponse</button>
-              <button
-                onClick={() => { setCorrectionMode('rule'); setEditNote(''); }}
-                style={{flex:1,padding:'6px 0',border:'1px solid',borderColor:correctionMode==='rule'?'#f59e0b':'#334155',background:correctionMode==='rule'?'#422006':'transparent',color:correctionMode==='rule'?'#fbbf24':'#94a3b8',borderRadius:4,cursor:'pointer',fontSize:12}}
-              >Ajouter une regle generale</button>
+        <div className="modal-overlay" onClick={()=>setEditingIdx(null)}>
+          <div className="modal" onClick={e=>e.stopPropagation()}>
+            <h3>{correctionMode==='correction'?'Corriger la reponse AI':'Ajouter une regle'}</h3>
+            <p style={{fontSize:11,color:'#94a3b8',marginBottom:6}}>Intent: {messages[editingIdx]?.intent}</p>
+            <p style={{fontSize:12,color:'#cbd5e1',marginBottom:10,padding:6,background:'#0f172a',borderRadius:6,maxHeight:80,overflow:'auto'}}>{messages[editingIdx]?.content}</p>
+            <div style={{display:'flex',gap:4,marginBottom:8}}>
+              <button onClick={()=>{setCorrectionMode('correction');setEditNote('');}} style={{flex:1,padding:'5px 0',border:'1px solid',borderColor:correctionMode==='correction'?'#2563eb':'#334155',background:correctionMode==='correction'?'#1e3a5f':'transparent',color:correctionMode==='correction'?'#93c5fd':'#94a3b8',borderRadius:4,cursor:'pointer',fontSize:11}}>Corriger</button>
+              <button onClick={()=>{setCorrectionMode('rule');setEditNote('');}} style={{flex:1,padding:'5px 0',border:'1px solid',borderColor:correctionMode==='rule'?'#f59e0b':'#334155',background:correctionMode==='rule'?'#422006':'transparent',color:correctionMode==='rule'?'#fbbf24':'#94a3b8',borderRadius:4,cursor:'pointer',fontSize:11}}>Regle generale</button>
             </div>
-            <textarea
-              value={editNote}
-              onChange={e => setEditNote(e.target.value)}
-              placeholder={correctionMode === 'correction'
-                ? "Qu'est-ce qui est incorrect? Quelle devrait etre la bonne reponse?"
-                : "Ecris une regle qui s'appliquera a TOUS les futurs messages. Ex: Ne jamais proposer un montant avant la reponse du client"}
-              autoFocus
-            />
+            <textarea value={editNote} onChange={e=>setEditNote(e.target.value)} placeholder={correctionMode==='correction'?"Quelle devrait etre la bonne reponse?":"Regle pour TOUS les futurs messages"} autoFocus />
             <div className="modal-actions">
-              <button style={{background:'#334155',color:'#e2e8f0'}} onClick={() => setEditingIdx(null)}>Annuler</button>
-              <button
-                style={{background:correctionMode==='correction'?'#f59e0b':'#2563eb',color:correctionMode==='correction'?'#000':'#fff'}}
-                onClick={saveCorrection}
-                disabled={!editNote.trim()}
-              >{correctionMode === 'correction' ? 'Sauvegarder correction' : 'Ajouter la regle'}</button>
+              <button style={{background:'#334155',color:'#e2e8f0'}} onClick={()=>setEditingIdx(null)}>Annuler</button>
+              <button style={{background:correctionMode==='correction'?'#f59e0b':'#2563eb',color:correctionMode==='correction'?'#000':'#fff'}} onClick={saveCorrection} disabled={!editNote.trim()}>{correctionMode==='correction'?'Sauvegarder':'Ajouter regle'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddSc && (
+        <div className="modal-overlay" onClick={()=>setShowAddSc(false)}>
+          <div className="modal" onClick={e=>e.stopPropagation()}>
+            <h3>Ajouter un scenario</h3>
+            <div style={{marginBottom:8}}><label style={{fontSize:11,color:'#94a3b8',display:'block',marginBottom:3}}>Titre</label><input type="text" value={newScTitle} onChange={e=>setNewScTitle(e.target.value)} placeholder="Ex: Client demande son contrat" /></div>
+            <div><label style={{fontSize:11,color:'#94a3b8',display:'block',marginBottom:3}}>Phrase a dire</label><textarea value={newScMsg} onChange={e=>setNewScMsg(e.target.value)} placeholder="Ex: Pouvez-vous m'envoyer mon contrat par courriel?" style={{height:60}} /></div>
+            <div className="modal-actions">
+              <button style={{background:'#334155',color:'#e2e8f0'}} onClick={()=>setShowAddSc(false)}>Annuler</button>
+              <button style={{background:'#2563eb',color:'#fff'}} onClick={addCustomScenario} disabled={!newScTitle.trim()||!newScMsg.trim()}>Ajouter</button>
             </div>
           </div>
         </div>
@@ -420,7 +293,6 @@ function App() {
     </>
   );
 }
-
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
 </body>
