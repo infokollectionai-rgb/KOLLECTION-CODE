@@ -96,6 +96,8 @@ const SCENARIOS = [
   { id: 14, label: "Qui etes-vous?", msg: "C'est qui ca? C'est quoi ce numero?" },
   { id: 15, label: "Promesse future", msg: "Je peux pas la mais le mois prochain oui" },
   { id: 16, label: "Paiement partiel fait", msg: "J'ai deja paye 200$ la semaine passee" },
+  { id: 17, label: "Paiement manque (relance)", msg: "J'avais une entente mais j'ai pas pu payer mon deuxieme versement" },
+  { id: 18, label: "Client revient apres silence", msg: "Oui allo, vous m'aviez appele?" },
 ];
 
 function App() {
@@ -320,7 +322,7 @@ function App() {
           ))}
           {rules.length === 0 && <div style={{fontSize:11,color:'#475569',padding:'4px 0'}}>Aucune regle. Les regles sont envoyees au AI en priorite haute.</div>}
         </div>
-        <h2>16 Scenarios</h2>
+        <h2>18 Scenarios</h2>
         <div className="scenario-list">
           {SCENARIOS.map(sc => (
             <button key={sc.id} className={`scenario-btn ${activeScenario === sc.id ? 'active' : ''}`} onClick={() => handleScenario(sc)}>
