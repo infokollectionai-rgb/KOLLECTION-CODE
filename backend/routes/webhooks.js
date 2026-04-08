@@ -64,7 +64,7 @@ router.post('/inbound/sms', async (req, res) => {
       // Fetch company record for name + agent name + Stripe account
       const { data: company } = await supabase
         .from('client_companies')
-        .select('company_name, voice_agent_name, stripe_account_id, discount_percent')
+        .select('company_name, voice_agent_name, stripe_account_id, discount_percent, business_email, sendgrid_from_email')
         .eq('id', debtor.company_id ?? companyId)
         .single();
 
@@ -226,8 +226,25 @@ FINAL (2+ promesses brisées OU 60+ jours): Mention transfert de dossier, derni�
 
 LIENS DE PAIEMENT:
 - JAMAIS de lien au premier contact
-- Seulement APRÈS que le débiteur accepte un montant précis
-- Quand il accepte: dis "Parfait ${firstName}! Je vous envoie le lien de [montant]$ maintenant. Confirmez-moi lorsque c'est fait." et ajoute [GENERATE_PAYMENT_LINK:montant] à la fin (ex: [GENERATE_PAYMENT_LINK:350.00])`
+- Seulement APRÈS que le débiteur accepte un montant précis ET veut payer MAINTENANT
+- Quand il accepte et est prêt: "Parfait ${firstName}! Je vous envoie le lien de [montant]$ maintenant. Confirmez-moi lorsque c'est fait." + [GENERATE_PAYMENT_LINK:montant]
+- Si le client donne une date FUTURE (vendredi, dans 2 semaines, quand je reçois mes prestations): NE PAS générer [GENERATE_PAYMENT_LINK]. Générer SEULEMENT [SCHEDULE_FOLLOWUP:date:montant]. Le lien sera envoyé automatiquement à la date convenue.
+
+FRÉQUENCE DE PAYE:
+- Quand le client mentionne sa fréquence de paye, la noter: [PAY_FREQUENCY:type]
+  "chaque semaine" → [PAY_FREQUENCY:weekly] | "aux deux semaines" → [PAY_FREQUENCY:biweekly]
+  "le 15 et le 31" → [PAY_FREQUENCY:bimonthly_15_31] | "le 1er et le 15" → [PAY_FREQUENCY:bimonthly_1_15]
+  "une fois par mois" → [PAY_FREQUENCY:monthly]
+
+DEMANDE DE DOCUMENTS:
+- Si le client demande son contrat, ses détails de compte, ou des preuves par courriel:
+  "${firstName}, pas de problème, nous allons faire parvenir les détails de votre dossier à votre courriel. Vous devriez recevoir le tout dans un délai de 24 heures. On fait un suivi avec vous par la suite." + [REQUEST_DOCUMENTS]
+
+LIEN NE FONCTIONNE PAS:
+- Si le client dit "le lien ouvre pas", "ça marche pas", "j'arrive pas à payer":
+  "Pas de problème! Vous pouvez effectuer un virement Interac au courriel suivant: [email compagnie]. Le montant est de [montant]$. Dépôt automatique activé. Confirmez-moi lorsque c'est fait."
+- Si le client dit "c'est fait" / "j'ai envoyé" après un Interac:
+  "Merci ${firstName}! Nous allons vérifier la réception du virement et vous confirmer." + [INTERAC_PAYMENT_CLAIMED:montant]`
         : `You are ${agentName}, a real person working for ${companyName}. You're texting ${firstName} about their $${amount.toFixed(2)} balance.
 
 YOUR NAME: ${agentName}
@@ -359,7 +376,24 @@ FINAL (2+ broken promises OR 60+ days): Mention file transfer, last chance.
 PAYMENT LINKS:
 - NEVER include a link on first contact
 - Only AFTER the debtor agrees to a specific amount
-- When they agree: say "Great ${firstName}! I'm sending you the $[amount] link now. Please confirm once it's done." and add [GENERATE_PAYMENT_LINK:amount] at the end (e.g. [GENERATE_PAYMENT_LINK:350.00])`;
+- When they agree AND are ready to pay NOW: "Great ${firstName}! I'm sending you the $[amount] link now. Please confirm once it's done." + [GENERATE_PAYMENT_LINK:amount]
+- If client gives a FUTURE date: do NOT generate [GENERATE_PAYMENT_LINK]. Only [SCHEDULE_FOLLOWUP:date:amount]. The link will be sent automatically on the agreed date.
+
+PAY FREQUENCY:
+- When client mentions pay frequency, tag it: [PAY_FREQUENCY:type]
+  "every week" → [PAY_FREQUENCY:weekly] | "every two weeks" → [PAY_FREQUENCY:biweekly]
+  "the 15th and 31st" → [PAY_FREQUENCY:bimonthly_15_31] | "the 1st and 15th" → [PAY_FREQUENCY:bimonthly_1_15]
+  "once a month" → [PAY_FREQUENCY:monthly]
+
+DOCUMENT REQUEST:
+- If client asks for their contract, account details, or proof by email:
+  "${firstName}, no problem, we'll send your file details to your email. You should receive everything within 24 hours. We'll follow up with you after that." + [REQUEST_DOCUMENTS]
+
+LINK NOT WORKING:
+- If client says "link doesn't work", "can't open the link", "won't load":
+  "No problem! You can make an Interac e-Transfer to: [company email]. The amount is $[amount]. Auto-deposit is enabled. Please confirm once it's done."
+- If client says "done" / "I sent it" after Interac:
+  "Thank you ${firstName}! We'll verify the transfer and confirm with you." + [INTERAC_PAYMENT_CLAIMED:amount]`;
 
       // Fetch conversation history BEFORE inserting the new message (avoids duplicate)
       const { data: recentConvos } = await supabase
@@ -410,6 +444,61 @@ PAYMENT LINKS:
         replyText = replyText.replace(/\s*\[DISPUTE\]\s*/g, '').trim();
         await supabase.from('debtors').update({ legal_threat_flag: true, human_takeover: true }).eq('id', debtor.id);
         console.log(`DISPUTE flagged for debtor ${debtor.id} (${firstName}) — queued for human review`);
+      }
+
+      // Handle [REQUEST_DOCUMENTS] tag
+      if (replyText.includes('[REQUEST_DOCUMENTS]')) {
+        replyText = replyText.replace(/\s*\[REQUEST_DOCUMENTS\]\s*/g, '').trim();
+        try {
+          const companyEmail = company?.business_email || company?.sendgrid_from_email;
+          if (companyEmail) {
+            const sgMail = require('@sendgrid/mail');
+            sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+            await sgMail.send({
+              to:      companyEmail,
+              from:    { email: process.env.SENDGRID_FROM_EMAIL || companyEmail, name: 'Kollection' },
+              subject: `ACTION REQUISE - Envoi de documents demandé par ${debtor.name || firstName}`,
+              text:    `Le débiteur ${debtor.name || firstName} (${debtor.phone || 'N/A'}, ${debtor.email || 'N/A'}) demande de recevoir son contrat et les détails de son compte par courriel.\n\nVeuillez envoyer les documents dans un délai de 24h au client et mettre info@kollection.ca en CC.\n\nMerci.`,
+            });
+            console.log(`[REQUEST_DOCUMENTS] Email sent to ${companyEmail} for debtor ${debtor.id}`);
+          }
+          // Schedule follow-up 48h later
+          const followup48h = new Date(Date.now() + 48 * 60 * 60 * 1000);
+          followup48h.setHours(10, 0, 0, 0);
+          await supabase.from('scheduled_contacts').insert({
+            debtor_id: debtor.id, company_id: debtor.company_id ?? companyId,
+            channel: 'sms', layer: 2, scheduled_for: followup48h.toISOString(),
+            status: 'pending', message_template: 'document_followup',
+            metadata: { type: 'document_request_followup' },
+          });
+          await supabase.from('debtors').update({ document_request_pending: true }).eq('id', debtor.id);
+        } catch (docErr) {
+          console.error('[REQUEST_DOCUMENTS] Error:', docErr.message);
+        }
+      }
+
+      // Handle [PAY_FREQUENCY:type] tag
+      const payFreqMatch = replyText.match(/\[PAY_FREQUENCY[:\s]*([\w_]+)\]/);
+      if (payFreqMatch) {
+        replyText = replyText.replace(/\s*\[PAY_FREQUENCY[:\s]*[\w_]*\]\s*/g, '').trim();
+        const freq = payFreqMatch[1];
+        if (['weekly', 'biweekly', 'bimonthly_15_31', 'bimonthly_1_15', 'monthly'].includes(freq)) {
+          await supabase.from('debtors').update({ pay_frequency: freq }).eq('id', debtor.id);
+          console.log(`[PAY_FREQUENCY] Debtor ${debtor.id} → ${freq}`);
+        }
+      }
+
+      // Handle [INTERAC_PAYMENT_CLAIMED:amount] tag
+      const interacMatch = replyText.match(/\[INTERAC_PAYMENT_CLAIMED[:\s]*([\d.]+)?\]/);
+      if (interacMatch) {
+        replyText = replyText.replace(/\s*\[INTERAC_PAYMENT_CLAIMED[:\s]*[\d.]*\]\s*/g, '').trim();
+        const interacAmount = parseFloat(interacMatch[1]) || amount;
+        await supabase.from('contact_attempts').insert({
+          debtor_id: debtor.id, company_id: companyId,
+          channel: 'sms', direction: 'inbound', status: 'interac_claimed',
+          metadata: { type: 'interac_payment', claimed_amount: interacAmount },
+        });
+        console.log(`[INTERAC_PAYMENT_CLAIMED] Debtor ${debtor.id} claims $${interacAmount} Interac payment`);
       }
 
       // Handle [SCHEDULE_FOLLOWUP:date:amount] tag

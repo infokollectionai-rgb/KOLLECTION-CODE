@@ -51,6 +51,22 @@ const FRENCH_AREA_CODES = ['514', '438', '450', '579', '418', '581', '819', '873
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/**
+ * Adjusts a date if it falls on a weekend.
+ * rule: 'before' → move to Friday, 'after' → move to Monday
+ */
+function adjustForWeekend(date, rule) {
+  const day = date.getDay(); // 0=Sun, 6=Sat
+  if (rule === 'before') {
+    if (day === 0) date.setDate(date.getDate() - 2); // Sun → Fri
+    if (day === 6) date.setDate(date.getDate() - 1); // Sat → Fri
+  } else if (rule === 'after') {
+    if (day === 0) date.setDate(date.getDate() + 1); // Sun → Mon
+    if (day === 6) date.setDate(date.getDate() + 2); // Sat → Mon
+  }
+  return date;
+}
+
 function buildVoiceSystemPrompt({ firstName, agentName, companyName, amount, discountAmount, paymentAmount, lang }) {
   const transferNumber = process.env.TRANSFER_NUMBER || '+14502046168';
 
@@ -696,5 +712,5 @@ async function markContact(contactId, status) {
     .eq('id', contactId);
 }
 
-module.exports = { processScheduledContacts, generatePaymentLink, buildVoiceSystemPrompt };
+module.exports = { processScheduledContacts, generatePaymentLink, buildVoiceSystemPrompt, adjustForWeekend };
 // force redeploy
