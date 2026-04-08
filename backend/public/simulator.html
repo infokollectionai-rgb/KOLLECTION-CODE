@@ -12,7 +12,8 @@
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;height:100vh;overflow:hidden}
 #root{display:flex;height:100vh}
 .sidebar{width:320px;background:#1e293b;border-right:1px solid #334155;display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
-.sidebar h2{padding:16px;font-size:14px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #334155}
+.sidebar h2{padding:16px;font-size:14px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between}
+.sidebar h2 .badge{background:#2563eb;color:#fff;font-size:11px;padding:1px 7px;border-radius:10px;font-weight:600}
 .sidebar-section{padding:12px 16px;border-bottom:1px solid #334155}
 .sidebar-section label{display:block;font-size:12px;color:#94a3b8;margin-bottom:4px}
 .sidebar-section input,.sidebar-section select{width:100%;padding:6px 8px;background:#0f172a;border:1px solid #334155;border-radius:4px;color:#e2e8f0;font-size:13px}
@@ -52,12 +53,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .modal-actions button{padding:8px 16px;border-radius:6px;border:none;cursor:pointer;font-size:13px}
 .stats{padding:8px 16px;background:#0f172a;border-bottom:1px solid #334155;display:flex;gap:16px;font-size:11px;color:#64748b}
 .stats span{color:#94a3b8}
+.rules-panel{background:#0f172a;border-bottom:1px solid #334155;max-height:0;overflow:hidden;transition:max-height .3s ease}
+.rules-panel.open{max-height:400px;overflow-y:auto}
+.rules-panel-inner{padding:12px 16px}
+.rules-panel-inner .rule-input-row{display:flex;gap:6px;margin-bottom:8px}
+.rules-panel-inner .rule-input-row textarea{flex:1;padding:6px 8px;background:#1e293b;border:1px solid #334155;border-radius:4px;color:#e2e8f0;font-size:12px;resize:none;height:36px}
+.rules-panel-inner .rule-input-row button{padding:4px 12px;background:#2563eb;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer;white-space:nowrap}
+.rule-item{display:flex;align-items:flex-start;gap:6px;padding:6px 0;border-bottom:1px solid #1e293b;font-size:12px;line-height:1.4}
+.rule-item .rule-num{color:#2563eb;font-weight:600;min-width:18px}
+.rule-item .rule-text{flex:1;color:#cbd5e1}
+.rule-item .rule-del{background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0 4px;line-height:1}
+.toggle-rules-btn{background:none;border:1px solid #334155;color:#94a3b8;padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;transition:all .15s}
+.toggle-rules-btn:hover{border-color:#2563eb;color:#e2e8f0}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
 const { useState, useRef, useEffect, useCallback } = React;
+
+const LS_RULES = 'kollection_sim_rules';
+const LS_CORRECTIONS = 'kollection_sim_corrections';
+
+function loadLS(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
+}
 
 const SCENARIOS = [
   { id: 1, label: "Premier contact (curieux)", msg: "Oui c'est moi, c'est quoi?" },
@@ -86,11 +106,18 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [corrections, setCorrections] = useState([]);
+  const [corrections, setCorrections] = useState(() => loadLS(LS_CORRECTIONS, []));
+  const [rules, setRules] = useState(() => loadLS(LS_RULES, []));
+  const [ruleInput, setRuleInput] = useState("");
+  const [rulesOpen, setRulesOpen] = useState(false);
   const [editingIdx, setEditingIdx] = useState(null);
   const [editNote, setEditNote] = useState("");
   const [activeScenario, setActiveScenario] = useState(null);
   const chatRef = useRef(null);
+
+  // Persist rules & corrections to localStorage
+  useEffect(() => { localStorage.setItem(LS_RULES, JSON.stringify(rules)); }, [rules]);
+  useEffect(() => { localStorage.setItem(LS_CORRECTIONS, JSON.stringify(corrections)); }, [corrections]);
 
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
@@ -103,6 +130,11 @@ function App() {
     }));
   }, []);
 
+  const buildCustomRules = useCallback(() => {
+    if (rules.length === 0) return undefined;
+    return rules.map((r, i) => `${i + 1}. ${r}`).join('\n');
+  }, [rules]);
+
   const sendMessage = useCallback(async (text) => {
     if (!text.trim() || loading) return;
     const userMsg = { role: 'user', content: text.trim() };
@@ -112,19 +144,24 @@ function App() {
     setLoading(true);
 
     try {
+      const body = {
+        debtorId: "test-simulator",
+        debtorName: config.name.split(' ')[0],
+        debtorPhone: config.phone,
+        amount: Number(config.amount),
+        companyName: config.creditor,
+        agentName: config.agentName,
+        tier: Number(config.tier),
+        floor: Number(config.amount) * 0.3,
+        conversationHistory: buildHistory(newMsgs),
+      };
+      const cr = buildCustomRules();
+      if (cr) body.customRules = cr;
+
       const res = await fetch('/agents/negotiation/suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          debtorId: "test-simulator",
-          debtorPhone: config.phone,
-          amount: Number(config.amount),
-          companyName: config.creditor,
-          agentName: config.agentName,
-          tier: Number(config.tier),
-          floor: Number(config.amount) * 0.3,
-          conversationHistory: buildHistory(newMsgs),
-        })
+        body: JSON.stringify(body)
       });
       const data = await res.json();
       const aiText = data.message || data.error || "Erreur: pas de reponse";
@@ -134,7 +171,7 @@ function App() {
       setMessages(prev => [...prev, { role: 'ai', content: `Erreur: ${err.message}`, intent: 'ERROR' }]);
     }
     setLoading(false);
-  }, [messages, loading, config, buildHistory]);
+  }, [messages, loading, config, buildHistory, buildCustomRules]);
 
   const handleScenario = (sc) => {
     setActiveScenario(sc.id);
@@ -142,8 +179,18 @@ function App() {
   };
 
   const resetChat = () => {
-    setMessages([{ role: 'system', content: `Simulateur demarrer. Debiteur: ${config.name}, Creancier: ${config.creditor}, Montant: ${config.amount}$, Tier: ${config.tier}` }]);
+    setMessages([{ role: 'system', content: `Nouvelle conversation. Debiteur: ${config.name}, Creancier: ${config.creditor}, Montant: ${config.amount}$, Tier: ${config.tier}` }]);
     setActiveScenario(null);
+  };
+
+  const addRule = () => {
+    if (!ruleInput.trim()) return;
+    setRules(prev => [...prev, ruleInput.trim()]);
+    setRuleInput("");
+  };
+
+  const removeRule = (idx) => {
+    setRules(prev => prev.filter((_, i) => i !== idx));
   };
 
   const startCorrection = (idx) => {
@@ -161,6 +208,7 @@ function App() {
       intent: msg.intent,
       correction: editNote,
       config: { ...config },
+      activeRules: [...rules],
       conversationContext: messages.slice(Math.max(0, editingIdx - 2), editingIdx + 1).map(m => ({ role: m.role, content: m.content }))
     };
     setCorrections(prev => [...prev, correction]);
@@ -169,11 +217,30 @@ function App() {
   };
 
   const exportCorrections = () => {
-    const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), config, totalMessages: messages.length, corrections }, null, 2)], { type: 'application/json' });
+    const promptAdditions = rules.length > 0
+      ? "=== REGLES ADDITIONNELLES (PRIORITE HAUTE) ===\n" + rules.map((r, i) => `${i+1}. ${r}`).join('\n') + "\n=== FIN REGLES ==="
+      : null;
+    const blob = new Blob([JSON.stringify({
+      exportedAt: new Date().toISOString(),
+      config,
+      totalMessages: messages.length,
+      rules,
+      promptAdditions,
+      corrections
+    }, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = `kollection-corrections-${Date.now()}.json`; a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const clearAllData = () => {
+    if (confirm('Effacer toutes les corrections et regles?')) {
+      setCorrections([]);
+      setRules([]);
+      localStorage.removeItem(LS_RULES);
+      localStorage.removeItem(LS_CORRECTIONS);
+    }
   };
 
   useEffect(() => { resetChat(); }, []);
@@ -220,6 +287,28 @@ function App() {
             <option value="4">4 - Final (90j+)</option>
           </select>
         </div>
+        <h2>
+          Regles {rules.length > 0 && <span className="badge">{rules.length}</span>}
+        </h2>
+        <div className="sidebar-section">
+          <div className="rule-input-row">
+            <textarea
+              value={ruleInput}
+              onChange={e => setRuleInput(e.target.value)}
+              placeholder="Ex: Ne jamais proposer de montant avant la reponse du client"
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addRule(); }}}
+            />
+            <button onClick={addRule} disabled={!ruleInput.trim()}>Ajouter</button>
+          </div>
+          {rules.map((r, i) => (
+            <div key={i} className="rule-item">
+              <span className="rule-num">{i + 1}.</span>
+              <span className="rule-text">{r}</span>
+              <button className="rule-del" onClick={() => removeRule(i)}>&#10005;</button>
+            </div>
+          ))}
+          {rules.length === 0 && <div style={{fontSize:11,color:'#475569',padding:'4px 0'}}>Aucune regle. Les regles sont envoyees au AI en priorite haute.</div>}
+        </div>
         <h2>16 Scenarios</h2>
         <div className="scenario-list">
           {SCENARIOS.map(sc => (
@@ -234,15 +323,22 @@ function App() {
         <div className="header">
           <h1>KOLLECTION AI Simulator</h1>
           <div className="header-actions">
-            <button className="btn-reset" onClick={resetChat}>Reset</button>
-            <button className="btn-export" onClick={exportCorrections} disabled={corrections.length === 0}>
+            <button className="btn-reset" onClick={resetChat}>Nouvelle convo</button>
+            <button className="btn-reset" onClick={clearAllData} style={{color:'#ef4444'}}>Tout effacer</button>
+            <button className="btn-export" onClick={exportCorrections} disabled={corrections.length === 0 && rules.length === 0}>
               Export ({corrections.length})
             </button>
           </div>
         </div>
         <div className="stats">
-          Messages: <span>{messages.length}</span> | Corrections: <span>{corrections.length}</span> | Tier: <span>{config.tier}</span> | Montant: <span>{config.amount}$</span>
+          Messages: <span>{messages.length}</span> | Corrections: <span>{corrections.length}</span> | Regles: <span>{rules.length}</span> | Tier: <span>{config.tier}</span> | Montant: <span>{config.amount}$</span>
         </div>
+
+        {rules.length > 0 && (
+          <div style={{padding:'6px 16px',background:'#1e293b',borderBottom:'1px solid #334155',fontSize:11,color:'#f59e0b'}}>
+            {rules.length} regle{rules.length > 1 ? 's' : ''} active{rules.length > 1 ? 's' : ''} — envoyee{rules.length > 1 ? 's' : ''} au AI a chaque message
+          </div>
+        )}
 
         <div className="chat" ref={chatRef}>
           {messages.map((m, i) => (
